@@ -6,7 +6,7 @@ class ExtractFromTextRequest(BaseModel):
 
 class ExtractionResult(BaseModel):
     name: str | None = Field(default=None, description="Extracted person/customer name")
-    account_numer: str | None = Field(default=None, description="Extracted account number")
+    account_number: str | None = Field(default=None, description="Extracted account number")
 
 class ExtractionMeta(BaseModel):
     input_characters: int

@@ -1,3 +1,4 @@
+'''
 import json
 import httpx
 from fastapi import HTTPException
@@ -104,3 +105,71 @@ class LLMClient:
                 status_code=502,
                 detail="LLM microservice returned invalid JSON",
             ) from exc
+        '''
+
+import re
+from app.core.config import get_settings
+
+
+class LLMClient:
+    def __init__(self) -> None:
+        self.settings = get_settings()
+
+    async def extract_fields(self, prompt: str) -> dict[str, str | None]:
+        """
+        MOCK LLM FUNCTION
+
+        Instead of calling real microservice,
+        we simulate extraction using regex.
+
+        Later: replace this function with real API call.
+        """
+
+        # Extract text part from prompt (everything inside triple quotes)
+        text_match = re.search(r'"""(.*?)"""', prompt, re.DOTALL)
+
+        if not text_match:
+            return {
+                "name": None,
+                "account_number": None
+            }
+
+        text = text_match.group(1)
+
+        # ---- Mock extraction logic ----
+
+        name = None
+        account_number = None
+
+        # Name patterns
+        name_patterns = [
+            r"Customer Name[:\-\s]+(.+)",
+            r"Account Name[:\-\s]+(.+)",
+            r"Name[:\-\s]+(.+)"
+        ]
+
+        # Account patterns
+        account_patterns = [
+            r"Account Number[:\-\s]+([\w\- ]+)",
+            r"Acc No[:\-\s]+([\w\- ]+)",
+            r"Account No[:\-\s]+([\w\- ]+)"
+        ]
+
+        # Find name
+        for pattern in name_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                break
+
+        # Find account number
+        for pattern in account_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                account_number = match.group(1).strip()
+                break
+
+        return {
+            "name": name,
+            "account_number": account_number
+        }
