@@ -1,25 +1,17 @@
-"""
-Application entry point.
-
-Run locally:
-    uvicorn app.main:app --reload
-"""
-
 from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.core.config import get_settings
 from app.routes.extract import router as extract_router
 
-# ---------------------------------------------------------------------------
-# Logging — configure once here so all modules share the same format
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
@@ -28,27 +20,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+templates = Jinja2Templates(directory="app/templates")
 
-
-# ---------------------------------------------------------------------------
-# Lifespan (startup / shutdown hooks)
-# ---------------------------------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """
-    Code before `yield` runs at startup; code after runs at shutdown.
-    Add DB connections, model warm-up, etc. here as the project grows.
-    """
     logger.info("Starting %s v%s", settings.app_name, settings.app_version)
     logger.info("LLM endpoint: %s", settings.llm_url)
     yield
     logger.info("Shutting down %s", settings.app_name)
 
-
-# ---------------------------------------------------------------------------
-# App
-# ---------------------------------------------------------------------------
 
 app = FastAPI(
     title=settings.app_name,
@@ -57,26 +38,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(extract_router)
 
 
-# ---------------------------------------------------------------------------
-# Core routes
-# ---------------------------------------------------------------------------
-
-@app.get("/", tags=["Meta"])
-async def root() -> dict[str, str]:
-    return {"message": f"{settings.app_name} is running!"}
+@app.get("/", tags=["UI"])
+async def home(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "request": request,
+            "app_name": settings.app_name,
+            "app_version": settings.app_version,
+            "max_upload_mb": settings.max_upload_bytes // (1024 * 1024),
+        },
+    )
 
 
 @app.get("/health", tags=["Meta"])
 async def app_health() -> dict[str, str]:
     return {"status": "ok"}
 
-
-# ---------------------------------------------------------------------------
-# Global exception handler
-# ---------------------------------------------------------------------------
 
 @app.exception_handler(Exception)
 async def global_exception_handler(_, exc: Exception) -> JSONResponse:

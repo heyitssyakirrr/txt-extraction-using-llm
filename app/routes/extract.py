@@ -1,8 +1,7 @@
 """
-Extraction routes.
+Extraction routes — file upload only.
 
-/extract/from-text  — accepts a JSON body with a "text" field
-/extract/from-file  — accepts a .txt file upload
+/extract/from-file accepts a .txt file upload
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from fastapi import APIRouter, File, UploadFile
 
 from app.core.config import get_settings
 from app.models.schemas import (
-    ExtractFromTextRequest,
     ExtractResponse,
     ExtractionMeta,
     ExtractionResult,
@@ -30,22 +28,7 @@ settings = get_settings()
 llm_client = LLMClient()
 
 
-# ---------------------------------------------------------------------------
-# Shared extraction logic
-# ---------------------------------------------------------------------------
-
-async def _run_extraction(
-    original_text: str,
-    source: str,
-) -> ExtractResponse:
-    """
-    Core pipeline shared by both endpoints:
-      1. Pre-process
-      2. Window to relevant lines
-      3. Call LLM
-      4. Apply regex fallback for any null fields
-      5. Build and return the response
-    """
+async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
     preprocessed_text = preprocess_text(
         text=original_text,
         max_characters=settings.max_input_characters,
@@ -54,8 +37,6 @@ async def _run_extraction(
 
     prompt = build_extraction_prompt(focused_text)
     llm_result = await llm_client.extract_fields(prompt)
-
-    # Regex fallback fills only the fields the LLM left as null.
     fallback_result = regex_fallback_extract(focused_text)
 
     final_name = llm_result.get("name") or fallback_result.get("name")
@@ -85,22 +66,9 @@ async def _run_extraction(
     )
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
 @router.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@router.post("/from-text", response_model=ExtractResponse)
-async def extract_from_text(payload: ExtractFromTextRequest) -> ExtractResponse:
-    """Extract name and account number from a plain-text string."""
-    return await _run_extraction(
-        original_text=payload.text,
-        source="raw_text",
-    )
 
 
 @router.post("/from-file", response_model=ExtractResponse)

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} — Internal Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+</head>
+<body
+    class="page-locked"
+    data-extract-url="/extract/from-file"
+    data-max-upload-mb="{{ max_upload_mb }}"
+>
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">
+
+            </div>
+
+            <div class="topbar-brand">PUBLIC BANK</div>
+            <div class="topbar-divider"></div>
+            <div class="topbar-title">Document Extraction</div>
+        </div>
+
+        <div class="topbar-right">INTERNAL SYSTEM</div>
+    </header>
+
+    <main class="page-container">
+        <section class="hero-panel">
+            <div class="hero-badge">Internal Extraction Tool</div>
+            <h1 class="page-title">Customer Data Extraction</h1>
+            <p class="page-subtitle">
+                Upload a .txt document to extract the customer name and account number
+                using the internal LLM extraction service.
+            </p>
+        </section>
+
+        <section class="upload-card">
+            <div class="card-section">
+                <div class="section-label">Upload Document</div>
+
+                <div id="dropZone" class="drop-zone">
+                    <input id="fileInput" type="file" accept=".txt">
+                    <div class="drop-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                            <polyline points="9,15 12,12 15,15"></polyline>
+                        </svg>
+                    </div>
+                    <div class="drop-title">Drop your .txt file here</div>
+                    <div class="drop-hint">or click to browse — max {{ max_upload_mb }} MB</div>
+                </div>
+
+                <div id="filePill" class="file-pill">
+                    <span class="file-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                        </svg>
+                    </span>
+                    <span id="fileName" class="file-pill-name"></span>
+                    <button id="clearFileBtn" class="file-pill-clear" type="button" title="Remove file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="errorBanner" class="banner banner-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span id="errorMessage"></span>
+                </div>
+
+                <div id="warnBanner" class="banner banner-warn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span id="warnMessage"></span>
+                </div>
+            </div>
+
+            <div class="card-section submit-section">
+                <button id="submitBtn" class="submit-btn" type="button" disabled>
+                    <span id="submitSpinner" class="spinner"></span>
+                    <span id="submitLabel">Extract Data</span>
+                </button>
+            </div>
+
+            <div id="resultsSection" class="card-section results-section">
+                <div class="section-label">Extracted fields</div>
+
+                <div class="result-grid">
+                    <div id="nameField" class="result-field">
+                        <div class="result-field-label">Customer name</div>
+                        <div id="nameValue" class="result-field-value">—</div>
+                    </div>
+
+                    <div id="accountField" class="result-field">
+                        <div class="result-field-label">Account number</div>
+                        <div id="accountValue" class="result-field-value">—</div>
+                    </div>
+                </div>
+
+                <div class="section-label section-label-spaced">Processing details</div>
+
+                <table class="meta-table">
+                    <tbody>
+                        <tr>
+                            <td>Source file</td>
+                            <td id="metaSource">—</td>
+                        </tr>
+                        <tr>
+                            <td>Input characters</td>
+                            <td id="metaInput">—</td>
+                        </tr>
+                        <tr>
+                            <td>After preprocessing</td>
+                            <td id="metaProcessed">—</td>
+                        </tr>
+                        <tr>
+                            <td>LLM called</td>
+                            <td id="metaLlm">—</td>
+                        </tr>
+                        <tr>
+                            <td>Regex fallback used</td>
+                            <td id="metaFallback">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="reset-row">
+                    <button id="resetBtn" class="reset-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+                        </svg>
+                        <span>Extract another file</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="page-footer">
+        <span>{{ app_name }} v{{ app_version }}</span>
+        <span>Only .txt files are supported</span>
+        <span>Max file size: {{ max_upload_mb }} MB</span>
+    </footer>
+
+    <script src="{{ url_for('static', path='app.js') }}"></script>
+</body>
+</html>

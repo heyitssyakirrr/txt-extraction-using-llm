@@ -2,18 +2,6 @@ from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
-# Inbound request models
-# ---------------------------------------------------------------------------
-
-class ExtractFromTextRequest(BaseModel):
-    text: str = Field(
-        ...,
-        min_length=1,
-        description="Raw text to extract information from.",
-    )
-
-
-# ---------------------------------------------------------------------------
 # Extraction result & response
 # ---------------------------------------------------------------------------
 
