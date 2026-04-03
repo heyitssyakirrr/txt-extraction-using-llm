@@ -5,49 +5,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let selectedFile = null;
 
+    const pageContainer = document.getElementById("pageContainer");
     const dropZone = document.getElementById("dropZone");
     const fileInput = document.getElementById("fileInput");
     const filePill = document.getElementById("filePill");
     const fileName = document.getElementById("fileName");
     const clearFileBtn = document.getElementById("clearFileBtn");
-
     const submitBtn = document.getElementById("submitBtn");
     const submitSpinner = document.getElementById("submitSpinner");
     const submitLabel = document.getElementById("submitLabel");
-
     const errorBanner = document.getElementById("errorBanner");
     const errorMessage = document.getElementById("errorMessage");
     const warnBanner = document.getElementById("warnBanner");
     const warnMessage = document.getElementById("warnMessage");
-
-    const resultsSection = document.getElementById("resultsSection");
-    const nameField = document.getElementById("nameField");
-    const accountField = document.getElementById("accountField");
-    const nameValue = document.getElementById("nameValue");
-    const accountValue = document.getElementById("accountValue");
-
-    const metaSource = document.getElementById("metaSource");
-    const metaInput = document.getElementById("metaInput");
-    const metaProcessed = document.getElementById("metaProcessed");
-    const metaLlm = document.getElementById("metaLlm");
-    const metaFallback = document.getElementById("metaFallback");
-
     const resetBtn = document.getElementById("resetBtn");
+    const resultsPanel = document.getElementById("resultsPanel");
+    const resName = document.getElementById("resName");
+    const resMasterAcc = document.getElementById("resMasterAcc");
+    const resSubAcc = document.getElementById("resSubAcc");
+    const resAddress = document.getElementById("resAddress");
+    const resFiNum = document.getElementById("resFiNum");
 
-    if (
-        !dropZone || !fileInput || !filePill || !fileName || !clearFileBtn ||
-        !submitBtn || !submitSpinner || !submitLabel || !errorBanner ||
-        !errorMessage || !warnBanner || !warnMessage || !resultsSection ||
-        !nameField || !accountField || !nameValue || !accountValue ||
-        !metaSource || !metaInput || !metaProcessed || !metaLlm ||
-        !metaFallback || !resetBtn
-    ) {
-        console.error("Some required UI elements were not found.");
-        return;
-    }
-
-    dropZone.addEventListener("dragover", (event) => {
-        event.preventDefault();
+    // --- Drag and drop ---
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
         dropZone.classList.add("drag-over");
     });
 
@@ -55,29 +36,25 @@ document.addEventListener("DOMContentLoaded", () => {
         dropZone.classList.remove("drag-over");
     });
 
-    dropZone.addEventListener("drop", (event) => {
-        event.preventDefault();
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
         dropZone.classList.remove("drag-over");
-
-        const droppedFile = event.dataTransfer.files && event.dataTransfer.files[0];
-        if (droppedFile) {
-            setFile(droppedFile);
-        }
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) setFile(f);
     });
 
     fileInput.addEventListener("change", () => {
-        const chosenFile = fileInput.files && fileInput.files[0];
-        if (chosenFile) {
-            setFile(chosenFile);
-        }
+        const f = fileInput.files && fileInput.files[0];
+        if (f) setFile(f);
     });
 
-    clearFileBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    clearFileBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         clearFile();
     });
 
+    // --- Submit ---
     submitBtn.addEventListener("click", async () => {
         if (!selectedFile) {
             showError("Please select a .txt file first.");
@@ -104,30 +81,27 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderResults(result);
-            body.classList.remove("page-locked");
-            body.classList.add("page-scrollable");
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error(err);
             showError("Could not reach the extraction service. Please check the server is running.");
         } finally {
             setLoading(false);
         }
     });
 
-    resetBtn.addEventListener("click", () => {
-        resetUi();
-    });
+    resetBtn.addEventListener("click", () => resetUi());
 
+    // --- File helpers ---
     function setFile(file) {
         hideBanners();
 
         if (!file.name.toLowerCase().endsWith(".txt")) {
-            showError("Only .txt files are supported. Please upload a plain text file.");
+            showError("Only .txt files are supported.");
             return;
         }
 
         if (file.size > maxUploadMb * 1024 * 1024) {
-            showError(`File is too large. Maximum allowed size is ${maxUploadMb} MB.`);
+            showError(`File too large. Maximum allowed size is ${maxUploadMb} MB.`);
             return;
         }
 
@@ -135,7 +109,6 @@ document.addEventListener("DOMContentLoaded", () => {
         fileName.textContent = file.name;
         filePill.classList.add("visible");
         submitBtn.disabled = false;
-        resultsSection.classList.remove("visible");
     }
 
     function clearFile() {
@@ -145,108 +118,79 @@ document.addEventListener("DOMContentLoaded", () => {
         filePill.classList.remove("visible");
         submitBtn.disabled = true;
         hideBanners();
-        resultsSection.classList.remove("visible");
     }
 
+    // --- Render results ---
     function renderResults(result) {
         const data = result.data || {};
-        const meta = result.meta || {};
 
-        if (data.name) {
-            nameValue.textContent = data.name;
-            nameValue.classList.remove("null-value");
-            nameField.classList.add("found");
-        } else {
-            nameValue.textContent = "Not found";
-            nameValue.classList.add("null-value");
-            nameField.classList.remove("found");
+        setField(resName, data.name);
+        setField(resMasterAcc, data.master_account_number);
+        setField(resSubAcc, data.sub_account_number);
+        setField(resAddress, data.address);
+        setField(resFiNum, data.fi_num);
+
+        const missing = [
+            !data.name ? "customer name" : null,
+            !data.master_account_number ? "master account number" : null,
+            !data.sub_account_number ? "sub account number" : null,
+            !data.address ? "address" : null,
+            !data.fi_num ? "FI number" : null,
+        ].filter(Boolean);
+
+        if (missing.length) {
+            showWarn(`Could not extract: ${missing.join(", ")}.`);
         }
 
-        if (data.account_number) {
-            accountValue.textContent = data.account_number;
-            accountValue.classList.remove("null-value");
-            accountField.classList.add("found");
-        } else {
-            accountValue.textContent = "Not found";
-            accountValue.classList.add("null-value");
-            accountField.classList.remove("found");
-        }
+        // Trigger layout split
+        pageContainer.classList.add("has-results");
 
-        hideBanners();
-
-        if (!data.name || !data.account_number) {
-            const missingFields = [
-                !data.name ? "customer name" : null,
-                !data.account_number ? "account number" : null,
-            ].filter(Boolean).join(" and ");
-
-            showWarn(
-                `Could not extract ${missingFields}. The document may not contain these fields in a recognised format.`
-            );
-        }
-
-        metaSource.textContent = meta.source || "—";
-        metaInput.textContent = typeof meta.input_characters === "number"
-            ? `${meta.input_characters.toLocaleString()} chars`
-            : "—";
-        metaProcessed.textContent = typeof meta.preprocessed_characters === "number"
-            ? `${meta.preprocessed_characters.toLocaleString()} chars`
-            : "—";
-        metaLlm.innerHTML = createBadge(meta.llm_called, "yes", "no");
-
-        if (meta.llm_fallback_used) {
-            metaFallback.innerHTML = '<span class="badge badge-warn">yes — regex filled missing field</span>';
-        } else {
-            metaFallback.innerHTML = '<span class="badge badge-no">no</span>';
-        }
-
-        resultsSection.classList.add("visible");
-        setTimeout(() => {
-            resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
+        // Swap buttons
+        submitBtn.style.display = "none";
+        resetBtn.style.display = "flex";
     }
 
-    function createBadge(value, trueLabel, falseLabel) {
+    function setField(el, value) {
         if (value) {
-            return `<span class="badge badge-yes">${trueLabel}</span>`;
+            el.textContent = value;
+            el.classList.add("found");
+            el.classList.remove("not-found");
+        } else {
+            el.textContent = "Not found";
+            el.classList.add("not-found");
+            el.classList.remove("found");
         }
-        return `<span class="badge badge-no">${falseLabel}</span>`;
     }
 
+    // --- Reset ---
     function resetUi() {
         clearFile();
+        hideBanners();
 
-        nameValue.textContent = "—";
-        accountValue.textContent = "—";
-        nameValue.classList.remove("null-value");
-        accountValue.classList.remove("null-value");
-        nameField.classList.remove("found");
-        accountField.classList.remove("found");
+        [resName, resMasterAcc, resSubAcc, resAddress, resFiNum].forEach(el => {
+            el.textContent = "—";
+            el.classList.remove("found", "not-found");
+        });
 
-        metaSource.textContent = "—";
-        metaInput.textContent = "—";
-        metaProcessed.textContent = "—";
-        metaLlm.textContent = "—";
-        metaFallback.textContent = "—";
-
-        body.classList.remove("page-scrollable");
-        body.classList.add("page-locked");
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        pageContainer.classList.remove("has-results");
+        submitBtn.style.display = "flex";
+        resetBtn.style.display = "none";
     }
 
+    // --- UI state ---
     function setLoading(isLoading) {
         submitBtn.disabled = isLoading || !selectedFile;
         submitSpinner.classList.toggle("visible", isLoading);
-        submitLabel.textContent = isLoading ? "Extracting..." : "Extract data";
+        submitLabel.textContent = isLoading ? "Extracting..." : "Extract Data";
     }
 
-    function showError(message) {
-        errorMessage.textContent = message;
+    function showError(msg) {
+        errorMessage.textContent = msg;
         errorBanner.classList.add("visible");
     }
 
-    function showWarn(message) {
-        warnMessage.textContent = message;
+    function showWarn(msg) {
+        warnMessage.textContent = msg;
         warnBanner.classList.add("visible");
     }
 

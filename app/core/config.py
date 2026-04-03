@@ -14,12 +14,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8001"
     llm_extract_endpoint: str = "/extract"
     llm_timeout_seconds: float = 60.0
-
-    # Set LLM_API_KEY in .env if the microservice requires Bearer auth.
     llm_api_key: str | None = None
-
-    # The model name forwarded to the microservice (if it supports model selection).
     llm_model_name: str = "default"
+    helper_id: str = "file_reader"
 
     # ---------------------------------------------------------------------------
     # Input safety

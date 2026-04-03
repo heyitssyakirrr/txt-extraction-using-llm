@@ -7,36 +7,29 @@
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
 </head>
 <body
-    class="page-locked"
     data-extract-url="/extract/from-file"
     data-max-upload-mb="{{ max_upload_mb }}"
 >
     <header class="topbar">
         <div class="topbar-left">
-            <div class="topbar-logo">
-
-            </div>
-
             <div class="topbar-brand">PUBLIC BANK</div>
             <div class="topbar-divider"></div>
             <div class="topbar-title">Document Extraction</div>
         </div>
-
         <div class="topbar-right">INTERNAL SYSTEM</div>
     </header>
 
-    <main class="page-container">
-        <section class="hero-panel">
-            <div class="hero-badge">Internal Extraction Tool</div>
-            <h1 class="page-title">Customer Data Extraction</h1>
-            <p class="page-subtitle">
-                Upload a .txt document to extract the customer name and account number
-                using the internal LLM extraction service.
-            </p>
-        </section>
+    <main class="page-container" id="pageContainer">
 
-        <section class="upload-card">
-            <div class="card-section">
+        <!-- LEFT: Upload (centered before extract, shifts left after) -->
+        <section class="upload-panel">
+            <div class="panel-header">
+                <div class="hero-badge">Internal Extraction Tool</div>
+                <h1 class="page-title">Customer Data Extraction</h1>
+                <p class="page-subtitle">Upload a .txt document to extract customer information using the internal LLM extraction service.</p>
+            </div>
+
+            <div class="upload-card">
                 <div class="section-label">Upload Document</div>
 
                 <div id="dropZone" class="drop-zone">
@@ -86,68 +79,50 @@
                     </svg>
                     <span id="warnMessage"></span>
                 </div>
-            </div>
 
-            <div class="card-section submit-section">
                 <button id="submitBtn" class="submit-btn" type="button" disabled>
                     <span id="submitSpinner" class="spinner"></span>
                     <span id="submitLabel">Extract Data</span>
                 </button>
+
+                <button id="resetBtn" class="reset-btn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+                    </svg>
+                    Extract another file
+                </button>
             </div>
+        </section>
 
-            <div id="resultsSection" class="card-section results-section">
-                <div class="section-label">Extracted fields</div>
+        <!-- RIGHT: Results (hidden until extract) -->
+        <section class="results-panel" id="resultsPanel">
+            <div class="results-card">
+                <div class="section-label">Extracted Fields</div>
 
-                <div class="result-grid">
-                    <div id="nameField" class="result-field">
-                        <div class="result-field-label">Customer name</div>
-                        <div id="nameValue" class="result-field-value">—</div>
-                    </div>
-
-                    <div id="accountField" class="result-field">
-                        <div class="result-field-label">Account number</div>
-                        <div id="accountValue" class="result-field-value">—</div>
-                    </div>
+                <div class="field-row">
+                    <div class="field-label">Customer Name</div>
+                    <div id="resName" class="field-value">—</div>
                 </div>
-
-                <div class="section-label section-label-spaced">Processing details</div>
-
-                <table class="meta-table">
-                    <tbody>
-                        <tr>
-                            <td>Source file</td>
-                            <td id="metaSource">—</td>
-                        </tr>
-                        <tr>
-                            <td>Input characters</td>
-                            <td id="metaInput">—</td>
-                        </tr>
-                        <tr>
-                            <td>After preprocessing</td>
-                            <td id="metaProcessed">—</td>
-                        </tr>
-                        <tr>
-                            <td>LLM called</td>
-                            <td id="metaLlm">—</td>
-                        </tr>
-                        <tr>
-                            <td>Regex fallback used</td>
-                            <td id="metaFallback">—</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="reset-row">
-                    <button id="resetBtn" class="reset-btn" type="button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                            <polyline points="1 4 1 10 7 10"></polyline>
-                            <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
-                        </svg>
-                        <span>Extract another file</span>
-                    </button>
+                <div class="field-row">
+                    <div class="field-label">Master Account No.</div>
+                    <div id="resMasterAcc" class="field-value">—</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Sub Account No.</div>
+                    <div id="resSubAcc" class="field-value">—</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Address</div>
+                    <div id="resAddress" class="field-value">—</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">FI Number</div>
+                    <div id="resFiNum" class="field-value">—</div>
                 </div>
             </div>
         </section>
+
     </main>
 
     <footer class="page-footer">

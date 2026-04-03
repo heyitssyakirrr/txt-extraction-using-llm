@@ -1,57 +1,59 @@
-"""
-Prompt construction for the LLM extraction call.
-
-Keeping prompts here (rather than inline in routes) means:
-  - Easy to iterate on prompt wording without touching business logic.
-  - Simple to add prompt versioning or A/B testing later.
-"""
-
 from __future__ import annotations
-
-import json
-
-
-# ---------------------------------------------------------------------------
-# Schema sent to the LLM — extend this when ExtractionResult grows
-# ---------------------------------------------------------------------------
-
-_EXPECTED_SCHEMA: dict[str, str] = {
-    "name": "string or null",
-    "account_number": "string or null",
-    # Add new fields here when requirements change.
-    # Example:
-    #   "branch": "string or null",
-    #   "document_date": "string or null",
-}
 
 
 def build_extraction_prompt(text: str) -> str:
-    """
-    Build the extraction prompt that is sent to the LLM microservice.
+    return f"""\
+You are a data extraction assistant for a Malaysian bank's internal system.
+Your task is to extract exactly five fields from a bank document.
 
-    The triple-quoted block is intentional — MockLLMClient uses it as a
-    boundary to locate the text section inside the prompt.
-    """
-    instructions = f"""\
-You are an information extraction assistant.
+=== RULES ===
+1. The document may or may not have labels. Do NOT rely only on labels.
+2. Use the full context of the document to determine the correct values.
+3. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
 
-Your task:
-Extract the following fields from the provided text:
-{chr(10).join(f"- {k}" for k in _EXPECTED_SCHEMA)}
+=== HOW TO IDENTIFY EACH FIELD ===
 
-Rules:
-- Return JSON only. No explanation, no markdown, no code fences.
-- If a field cannot be found, return null for that field.
-- Prefer the primary customer / account-holder name if multiple names appear.
-- Copy the account number exactly as it appears in the text.
-- Only return these keys: {", ".join(_EXPECTED_SCHEMA.keys())}
+NAME:
+- Full name of the account holder, NOT a staff name, branch name, or bank name.
+- Malaysian names are typically in FULL CAPITAL LETTERS.
+- Common formats:
+    - Malay  : AHMAD BIN HASSAN, SITI BINTI ALI
+    - Chinese: LEE CHONG WEI, TAN AH KOW
+    - Indian : RAMESH A/L RAJENDRAN, KAVITHA A/P SUBRAMANIAM
+- Ignore names that are clearly a bank branch, company, or staff member.
 
-Expected JSON schema:
-{json.dumps(_EXPECTED_SCHEMA, indent=2)}
+MASTER ACCOUNT NUMBER:
+- The primary account number, typically 10-16 digits, sometimes with dashes.
+- Usually the main/parent account identifier.
+- NOT a phone number, IC number, reference number, staff ID, or branch code.
 
-Text to analyse:
+SUB ACCOUNT NUMBER:
+- A secondary account number linked to the master account.
+- May be shorter than the master account number.
+- Return null if not present.
+
+ADDRESS:
+- The customer's mailing or residential address.
+- May span multiple lines — combine into one string separated by commas.
+- Ignore bank branch addresses.
+
+FI NUM:
+- Financial Institution number.
+- Typically a short numeric or alphanumeric code identifying the bank/branch.
+- May be labelled as "FI No", "FI Number", "FI Num", or similar.
+
+=== DOCUMENT ===
 \"\"\"
 {text}
 \"\"\"
+
+=== OUTPUT ===
+Return ONLY this JSON object with no other text:
+{{
+    "name": "<full customer name or null>",
+    "master_account_number": "<master account number or null>",
+    "sub_account_number": "<sub account number or null>",
+    "address": "<full address or null>",
+    "fi_num": "<FI number or null>"
+}}
 """
-    return instructions.strip()
