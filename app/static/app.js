@@ -5,26 +5,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let selectedFile = null;
 
-    const pageContainer = document.getElementById("pageContainer");
-    const dropZone = document.getElementById("dropZone");
-    const fileInput = document.getElementById("fileInput");
-    const filePill = document.getElementById("filePill");
-    const fileName = document.getElementById("fileName");
-    const clearFileBtn = document.getElementById("clearFileBtn");
-    const submitBtn = document.getElementById("submitBtn");
-    const submitSpinner = document.getElementById("submitSpinner");
-    const submitLabel = document.getElementById("submitLabel");
-    const errorBanner = document.getElementById("errorBanner");
-    const errorMessage = document.getElementById("errorMessage");
-    const warnBanner = document.getElementById("warnBanner");
-    const warnMessage = document.getElementById("warnMessage");
-    const resetBtn = document.getElementById("resetBtn");
-    const resultsPanel = document.getElementById("resultsPanel");
-    const resName = document.getElementById("resName");
-    const resMasterAcc = document.getElementById("resMasterAcc");
-    const resSubAcc = document.getElementById("resSubAcc");
-    const resAddress = document.getElementById("resAddress");
-    const resFiNum = document.getElementById("resFiNum");
+    // --- Get elements ---
+    const elements = {
+        pageContainer: document.getElementById("pageContainer"),
+        dropZone: document.getElementById("dropZone"),
+        fileInput: document.getElementById("fileInput"),
+        filePill: document.getElementById("filePill"),
+        fileName: document.getElementById("fileName"),
+        clearFileBtn: document.getElementById("clearFileBtn"),
+        submitBtn: document.getElementById("submitBtn"),
+        submitSpinner: document.getElementById("submitSpinner"),
+        submitLabel: document.getElementById("submitLabel"),
+        errorBanner: document.getElementById("errorBanner"),
+        errorMessage: document.getElementById("errorMessage"),
+        warnBanner: document.getElementById("warnBanner"),
+        warnMessage: document.getElementById("warnMessage"),
+        resetBtn: document.getElementById("resetBtn"),
+        resultsPanel: document.getElementById("resultsPanel"),
+        resName: document.getElementById("resName"),
+        resMasterAcc: document.getElementById("resMasterAcc"),
+        resSubAcc: document.getElementById("resSubAcc"),
+        resAddress: document.getElementById("resAddress"),
+        resFiNum: document.getElementById("resFiNum"),
+    };
+
+    // --- Validate elements ---
+    const missing = Object.entries(elements)
+        .filter(([_, el]) => !el)
+        .map(([key]) => key);
+
+    if (missing.length > 0) {
+        console.error("❌ Missing UI elements:", missing);
+        return;
+    }
+
+    // Destructure after validation
+    const {
+        pageContainer,
+        dropZone,
+        fileInput,
+        filePill,
+        fileName,
+        clearFileBtn,
+        submitBtn,
+        submitSpinner,
+        submitLabel,
+        errorBanner,
+        errorMessage,
+        warnBanner,
+        warnMessage,
+        resetBtn,
+        resName,
+        resMasterAcc,
+        resSubAcc,
+        resAddress,
+        resFiNum
+    } = elements;
 
     // --- Drag and drop ---
     dropZone.addEventListener("dragover", (e) => {
@@ -130,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setField(resAddress, data.address);
         setField(resFiNum, data.fi_num);
 
-        const missing = [
+        const missingFields = [
             !data.name ? "customer name" : null,
             !data.master_account_number ? "master account number" : null,
             !data.sub_account_number ? "sub account number" : null,
@@ -138,14 +174,11 @@ document.addEventListener("DOMContentLoaded", () => {
             !data.fi_num ? "FI number" : null,
         ].filter(Boolean);
 
-        if (missing.length) {
-            showWarn(`Could not extract: ${missing.join(", ")}.`);
+        if (missingFields.length) {
+            showWarn(`Could not extract: ${missingFields.join(", ")}.`);
         }
 
-        // Trigger layout split
         pageContainer.classList.add("has-results");
-
-        // Swap buttons
         submitBtn.style.display = "none";
         resetBtn.style.display = "flex";
     }

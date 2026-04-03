@@ -21,7 +21,7 @@
 
     <main class="page-container" id="pageContainer">
 
-        <!-- LEFT: Upload (centered before extract, shifts left after) -->
+        <!-- LEFT: Upload -->
         <section class="upload-panel">
             <div class="panel-header">
                 <div class="hero-badge">Internal Extraction Tool</div>
@@ -85,7 +85,7 @@
                     <span id="submitLabel">Extract Data</span>
                 </button>
 
-                <button id="resetBtn" class="reset-btn" type="button">
+                <button id="resetBtn" class="reset-btn" type="button" style="display:none;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <polyline points="1 4 1 10 7 10"></polyline>
                         <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
@@ -95,10 +95,10 @@
             </div>
         </section>
 
-        <!-- RIGHT: Results (hidden until extract) -->
+        <!-- RIGHT: Results -->
         <section class="results-panel" id="resultsPanel">
             <div class="results-card">
-                <div class="section-label">Extracted Fields</div>
+                <span class="section-label">Extracted Fields</span>
 
                 <div class="field-row">
                     <div class="field-label">Customer Name</div>
