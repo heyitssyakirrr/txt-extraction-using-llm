@@ -10,15 +10,27 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-async def read_txt_upload(file: UploadFile) -> str:
-    ext = ""
-    if file.filename:
-        ext = file.filename.rsplit(".", 1)[-1].lower()
-        if f".{ext}" not in settings.allowed_upload_extensions:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Unsupported file type '.{ext}'. Only .txt files are accepted.",
-            )
+def _get_extension(filename: str | None) -> str:
+    """Return the lowercase extension (e.g. '.pdf') or empty string."""
+    if not filename:
+        return ""
+    return "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+
+async def validate_and_read_upload(file: UploadFile) -> tuple[bytes, str]:
+    """
+    Validate the uploaded file (extension + size) and return (raw_bytes, extension).
+    Raises HTTPException on any validation failure.
+    Callers decide what to do with the bytes based on the returned extension.
+    """
+    ext = _get_extension(file.filename)
+
+    if ext not in settings.allowed_upload_extensions:
+        allowed = ", ".join(settings.allowed_upload_extensions)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type '{ext}'. Allowed types: {allowed}.",
+        )
 
     raw_bytes = await file.read()
 
@@ -28,6 +40,11 @@ async def read_txt_upload(file: UploadFile) -> str:
             detail=f"File exceeds the maximum allowed size of {settings.max_upload_bytes // (1024 * 1024)} MB.",
         )
 
+    return raw_bytes, ext
+
+
+def decode_txt_bytes(raw_bytes: bytes) -> str:
+    """Decode raw bytes from a .txt file to a Python string."""
     try:
         return raw_bytes.decode("utf-8")
     except UnicodeDecodeError:

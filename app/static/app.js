@@ -100,8 +100,9 @@ document.addEventListener("DOMContentLoaded", function () {
     function setFile(file) {
         hideBanners();
 
-        if (!file.name.toLowerCase().endsWith(".txt")) {
-            showError("Only .txt files are supported.");
+        var lower = file.name.toLowerCase();
+        if (!lower.endsWith(".txt") && !lower.endsWith(".pdf")) {
+            showError("Only .txt and .pdf files are supported.");
             return;
         }
 
@@ -185,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
             submitSpinner.classList.remove("visible");
         }
-        submitLabel.textContent = isLoading ? "Extracting..." : "Extract Data";
+        submitLabel.textContent = isLoading ? "Processing..." : "Extract Data";
     }
 
     // --- Banners ---

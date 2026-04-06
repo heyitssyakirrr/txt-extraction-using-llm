@@ -8,13 +8,15 @@ from app.models.schemas import (
     ExtractionMeta,
     ExtractionResult,
 )
-from app.services.file_service import read_txt_upload
+from app.services.docling_client import DoclingClient
+from app.services.file_service import decode_txt_bytes, validate_and_read_upload
 from app.services.llm_client import LLMClient
 from app.services.prompt_service import build_extraction_prompt
 
 router = APIRouter(prefix="/extract", tags=["Extraction"])
 settings = get_settings()
 llm_client = LLMClient()
+docling_client = DoclingClient()
 
 
 async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
@@ -46,8 +48,18 @@ async def health_check() -> dict[str, str]:
 
 @router.post("/from-file", response_model=ExtractResponse)
 async def extract_from_file(file: UploadFile = File(...)) -> ExtractResponse:
-    original_text = await read_txt_upload(file)
+    raw_bytes, ext = await validate_and_read_upload(file)
+    filename = file.filename or "uploaded_file"
+
+    if ext == ".pdf":
+        # PDF path: OCR first via Docling, then extract with LLM
+        original_text = await docling_client.pdf_to_text(raw_bytes, filename)
+    else:
+        # TXT path: decode bytes directly, send to LLM
+        original_text = decode_txt_bytes(raw_bytes)
+
+
     return await _run_extraction(
         original_text=original_text,
-        source=file.filename or "uploaded_file",
+        source=filename,
     )
