@@ -1,97 +1,65 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const body = document.body;
-    const extractUrl = body.dataset.extractUrl || "/extract/from-file";
-    const maxUploadMb = Number(body.dataset.maxUploadMb || "10");
+"use strict";
 
-    let selectedFile = null;
+document.addEventListener("DOMContentLoaded", function () {
 
-    // --- Get elements ---
-    const elements = {
-        pageContainer: document.getElementById("pageContainer"),
-        dropZone: document.getElementById("dropZone"),
-        fileInput: document.getElementById("fileInput"),
-        filePill: document.getElementById("filePill"),
-        fileName: document.getElementById("fileName"),
-        clearFileBtn: document.getElementById("clearFileBtn"),
-        submitBtn: document.getElementById("submitBtn"),
-        submitSpinner: document.getElementById("submitSpinner"),
-        submitLabel: document.getElementById("submitLabel"),
-        errorBanner: document.getElementById("errorBanner"),
-        errorMessage: document.getElementById("errorMessage"),
-        warnBanner: document.getElementById("warnBanner"),
-        warnMessage: document.getElementById("warnMessage"),
-        resetBtn: document.getElementById("resetBtn"),
-        resultsPanel: document.getElementById("resultsPanel"),
-        resName: document.getElementById("resName"),
-        resMasterAcc: document.getElementById("resMasterAcc"),
-        resSubAcc: document.getElementById("resSubAcc"),
-        resAddress: document.getElementById("resAddress"),
-        resFiNum: document.getElementById("resFiNum"),
-    };
+    // --- Config from data attributes on <body> ---
+    var body        = document.body;
+    var extractUrl  = body.dataset.extractUrl  || "/extract/from-file";
+    var maxUploadMb = Number(body.dataset.maxUploadMb || "10");
 
-    // --- Validate elements ---
-    const missing = Object.entries(elements)
-        .filter(([_, el]) => !el)
-        .map(([key]) => key);
+    var selectedFile = null;
 
-    if (missing.length > 0) {
-        console.error("❌ Missing UI elements:", missing);
-        return;
-    }
+    // --- Element references (IDs match index.html exactly) ---
+    var pageContainer  = document.getElementById("pageContainer");
+    var dropZone       = document.getElementById("dropZone");
+    var fileInput      = document.getElementById("fileInput");
+    var filePill       = document.getElementById("filePill");
+    var fileName       = document.getElementById("fileName");
+    var clearFileBtn   = document.getElementById("clearFileBtn");
+    var submitBtn      = document.getElementById("submitBtn");
+    var submitSpinner  = document.getElementById("submitSpinner");
+    var submitLabel    = document.getElementById("submitLabel");
+    var errorBanner    = document.getElementById("errorBanner");
+    var errorMessage   = document.getElementById("errorMessage");
+    var warnBanner     = document.getElementById("warnBanner");
+    var warnMessage    = document.getElementById("warnMessage");
+    var resetBtn       = document.getElementById("resetBtn");
+    var resName        = document.getElementById("resName");
+    var resMasterAcc   = document.getElementById("resMasterAcc");
+    var resSubAcc      = document.getElementById("resSubAcc");
+    var resAddress     = document.getElementById("resAddress");
+    var resFiNum       = document.getElementById("resFiNum");
 
-    // Destructure after validation
-    const {
-        pageContainer,
-        dropZone,
-        fileInput,
-        filePill,
-        fileName,
-        clearFileBtn,
-        submitBtn,
-        submitSpinner,
-        submitLabel,
-        errorBanner,
-        errorMessage,
-        warnBanner,
-        warnMessage,
-        resetBtn,
-        resName,
-        resMasterAcc,
-        resSubAcc,
-        resAddress,
-        resFiNum
-    } = elements;
-
-    // --- Drag and drop ---
-    dropZone.addEventListener("dragover", (e) => {
+    // --- Drag-and-drop ---
+    dropZone.addEventListener("dragover", function (e) {
         e.preventDefault();
         dropZone.classList.add("drag-over");
     });
 
-    dropZone.addEventListener("dragleave", () => {
+    dropZone.addEventListener("dragleave", function () {
         dropZone.classList.remove("drag-over");
     });
 
-    dropZone.addEventListener("drop", (e) => {
+    dropZone.addEventListener("drop", function (e) {
         e.preventDefault();
         dropZone.classList.remove("drag-over");
-        const f = e.dataTransfer.files && e.dataTransfer.files[0];
-        if (f) setFile(f);
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files[0]) setFile(files[0]);
     });
 
-    fileInput.addEventListener("change", () => {
-        const f = fileInput.files && fileInput.files[0];
-        if (f) setFile(f);
+    fileInput.addEventListener("change", function () {
+        var files = fileInput.files;
+        if (files && files[0]) setFile(files[0]);
     });
 
-    clearFileBtn.addEventListener("click", (e) => {
+    clearFileBtn.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
         clearFile();
     });
 
     // --- Submit ---
-    submitBtn.addEventListener("click", async () => {
+    submitBtn.addEventListener("click", function () {
         if (!selectedFile) {
             showError("Please select a .txt file first.");
             return;
@@ -100,32 +68,33 @@ document.addEventListener("DOMContentLoaded", () => {
         hideBanners();
         setLoading(true);
 
-        const formData = new FormData();
+        var formData = new FormData();
         formData.append("file", selectedFile);
 
-        try {
-            const response = await fetch(extractUrl, {
-                method: "POST",
-                body: formData,
+        fetch(extractUrl, {
+            method: "POST",
+            body: formData,
+        })
+        .then(function (response) {
+            return response.json().then(function (result) {
+                if (!response.ok || !result.success) {
+                    var msg = result.detail || result.message || ("Server error (HTTP " + response.status + ")");
+                    showError(msg);
+                } else {
+                    renderResults(result);
+                }
             });
-
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                showError(result.detail || result.message || `Server error (HTTP ${response.status})`);
-                return;
-            }
-
-            renderResults(result);
-        } catch (err) {
-            console.error(err);
+        })
+        .catch(function (err) {
+            console.error("Fetch error:", err);
             showError("Could not reach the extraction service. Please check the server is running.");
-        } finally {
+        })
+        .finally(function () {
             setLoading(false);
-        }
+        });
     });
 
-    resetBtn.addEventListener("click", () => resetUi());
+    resetBtn.addEventListener("click", resetUi);
 
     // --- File helpers ---
     function setFile(file) {
@@ -137,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (file.size > maxUploadMb * 1024 * 1024) {
-            showError(`File too large. Maximum allowed size is ${maxUploadMb} MB.`);
+            showError("File too large. Maximum allowed size is " + maxUploadMb + " MB.");
             return;
         }
 
@@ -158,40 +127,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Render results ---
     function renderResults(result) {
-        const data = result.data || {};
+        var data = result.data || {};
 
-        setField(resName, data.name);
-        setField(resMasterAcc, data.master_account_number);
-        setField(resSubAcc, data.sub_account_number);
-        setField(resAddress, data.address);
-        setField(resFiNum, data.fi_num);
+        setField(resName,      data.name,                   true);
+        setField(resMasterAcc, data.master_account_number,  false);
+        setField(resSubAcc,    data.sub_account_number,     false);
+        setField(resAddress,   data.address,                false);
+        setField(resFiNum,     data.fi_num,                 false);
 
-        const missingFields = [
-            !data.name ? "customer name" : null,
-            !data.master_account_number ? "master account number" : null,
-            !data.sub_account_number ? "sub account number" : null,
-            !data.address ? "address" : null,
-            !data.fi_num ? "FI number" : null,
-        ].filter(Boolean);
+        var missing = [];
+        if (!data.name)                  missing.push("customer name");
+        if (!data.master_account_number) missing.push("master account no.");
+        if (!data.sub_account_number)    missing.push("sub account no.");
+        if (!data.address)               missing.push("address");
+        if (!data.fi_num)                missing.push("FI number");
 
-        if (missingFields.length) {
-            showWarn(`Could not extract: ${missingFields.join(", ")}.`);
+        if (missing.length) {
+            showWarn("Could not extract: " + missing.join(", ") + ".");
         }
 
         pageContainer.classList.add("has-results");
         submitBtn.style.display = "none";
-        resetBtn.style.display = "flex";
+        resetBtn.style.display  = "flex";
     }
 
-    function setField(el, value) {
+    function setField(elem, value, isName) {
         if (value) {
-            el.textContent = value;
-            el.classList.add("found");
-            el.classList.remove("not-found");
+            elem.textContent = value;
+            elem.className = "field-value found" + (isName ? " is-name" : "");
         } else {
-            el.textContent = "Not found";
-            el.classList.add("not-found");
-            el.classList.remove("found");
+            elem.textContent = "Not found";
+            elem.className = "field-value not-found";
         }
     }
 
@@ -200,23 +166,29 @@ document.addEventListener("DOMContentLoaded", () => {
         clearFile();
         hideBanners();
 
-        [resName, resMasterAcc, resSubAcc, resAddress, resFiNum].forEach(el => {
-            el.textContent = "—";
-            el.classList.remove("found", "not-found");
-        });
+        var fields = [resName, resMasterAcc, resSubAcc, resAddress, resFiNum];
+        for (var i = 0; i < fields.length; i++) {
+            fields[i].textContent = "\u2014";
+            fields[i].className   = "field-value";
+        }
 
         pageContainer.classList.remove("has-results");
-        submitBtn.style.display = "flex";
-        resetBtn.style.display = "none";
+        submitBtn.style.display = "";
+        resetBtn.style.display  = "none";
     }
 
-    // --- UI state ---
+    // --- Loading state ---
     function setLoading(isLoading) {
         submitBtn.disabled = isLoading || !selectedFile;
-        submitSpinner.classList.toggle("visible", isLoading);
+        if (isLoading) {
+            submitSpinner.classList.add("visible");
+        } else {
+            submitSpinner.classList.remove("visible");
+        }
         submitLabel.textContent = isLoading ? "Extracting..." : "Extract Data";
     }
 
+    // --- Banners ---
     function showError(msg) {
         errorMessage.textContent = msg;
         errorBanner.classList.add("visible");
@@ -231,4 +203,5 @@ document.addEventListener("DOMContentLoaded", () => {
         errorBanner.classList.remove("visible");
         warnBanner.classList.remove("visible");
     }
+
 });
