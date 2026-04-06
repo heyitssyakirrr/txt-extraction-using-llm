@@ -10,7 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import get_settings
-from app.routes.extract import router as extract_router
+from app.features.extraction.router import router as extract_router
+from app.features.summary.router import router as summarise_router
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -40,6 +41,7 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(extract_router)
+app.include_router(summarise_router)
 
 
 @app.get("/", tags=["UI"])

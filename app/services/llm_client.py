@@ -11,22 +11,20 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def _normalize_llm_output(response_json: dict) -> dict[str, str | None]:
+def _normalize_llm_output(response_json: dict) -> dict:
+    """
+    Parse the LLM response envelope and return the full parsed dict.
+    Both extraction and summary features call this — each picks the keys it needs.
+    """
     logger.debug("Raw LLM response: %s", response_json)
 
     try:
         parsed = json.loads(response_json["text"].strip())
-        return {
-            "name": parsed.get("name"),
-            "master_account_number": parsed.get("master_account_number"),
-            "sub_account_number": parsed.get("sub_account_number"),
-            "address": parsed.get("address"),
-            "fi_num": parsed.get("fi_num"),
-        }
+        return parsed
     except (KeyError, json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
-            detail="Failed to parse LLM response. Check the 'text' field in the response."
+            detail="Failed to parse LLM response. Check the 'text' field in the response.",
         ) from exc
 
 
@@ -40,8 +38,12 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
         return headers
 
-    async def extract_fields(self, prompt: str) -> dict[str, str | None]:
-        payload = {"prompt": prompt, "model": self.settings.llm_model_name, "helper_id": self.settings.helper_id}
+    async def extract_fields(self, prompt: str) -> dict:
+        payload = {
+            "prompt": prompt,
+            "model": self.settings.llm_model_name,
+            "helper_id": self.settings.helper_id,
+        }
         logger.debug("Calling LLM microservice at %s", self.settings.llm_url)
 
         try:

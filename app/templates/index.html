@@ -3,160 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name }} &mdash; Internal Tool</title>
+    <title>{{ app_name }} — Internal Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
 </head>
-<body
-    data-extract-url="/extract/from-file"
-    data-max-upload-mb="{{ max_upload_mb }}"
->
+<body data-max-upload-mb="{{ max_upload_mb }}">
 
-    <!-- Topbar -->
     <header class="topbar">
         <div class="topbar-left">
-            <span class="topbar-brand">Public Bank</span>
+            <div class="topbar-brand">PUBLIC BANK</div>
             <div class="topbar-divider"></div>
-            <span class="topbar-title">Document Extraction</span>
+            <div class="topbar-title">Document Extraction</div>
         </div>
-        <span class="topbar-badge">Internal System</span>
+        <div class="topbar-right">INTERNAL SYSTEM</div>
     </header>
 
     <div class="page-wrapper">
-        <main class="page-container" id="pageContainer">
 
-            <!-- LEFT: Upload -->
-            <section class="upload-panel">
+        <!-- TAB BAR -->
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabExtract" onclick="switchTab('extract')">
+                Customer Details
+            </button>
+            <button class="tab-btn" id="tabSummarise" onclick="switchTab('summarise')">
+                Statement Summary
+            </button>
+        </div>
 
-                <div class="panel-header">
-                    <div class="hero-tag">
-                        <span class="hero-tag-dot"></span>
-                        Internal Extraction Tool
+        <!-- TAB: CUSTOMER DETAILS -->
+        <div class="tab-panel" id="panelExtract">
+            <div class="page-container" id="pageContainerExtract">
+
+                <section class="upload-panel">
+                    <div class="panel-header">
+                        <div class="hero-badge">Customer Extraction</div>
+                        <h1 class="page-title">Customer Data Extraction</h1>
+                        <p class="page-subtitle">Upload a .txt document to extract customer information using the internal LLM extraction service.</p>
                     </div>
-                    <h1 class="page-title">Customer Data Extraction</h1>
-                    <p class="page-subtitle">
-                        Upload a <code>.txt</code> document to extract customer information using the internal LLM extraction service.
-                    </p>
-                </div>
-
-                <div class="upload-card">
-                    <div class="card-label">Upload Document</div>
-
-                    <!-- Drop Zone -->
-                    <div id="dropZone" class="drop-zone">
-                        <input id="fileInput" type="file" accept=".txt, .pdf" tabindex="-1">
-                        <div class="drop-icon">
-                            <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14,2 14,8 20,8"></polyline>
-                                <line x1="12" y1="18" x2="12" y2="12"></line>
-                                <polyline points="9,15 12,12 15,15"></polyline>
-                            </svg>
+                    <div class="upload-card">
+                        <div class="section-label">Upload Document</div>
+                        <div id="dropZoneExtract" class="drop-zone">
+                            <input id="fileInputExtract" type="file" accept=".txt,.pdf">
+                            <div class="drop-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14,2 14,8 20,8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <polyline points="9,15 12,12 15,15"></polyline>
+                                </svg>
+                            </div>
+                            <div class="drop-title">Drop your file here</div>
+                            <div class="drop-hint">Supports .txt and .pdf — max {{ max_upload_mb }} MB</div>
                         </div>
-                        <div class="drop-title">Drop your .txt file here</div>
-                        <div class="drop-hint">Supports .txt and .pdf &mdash; max {{ max_upload_mb }}&thinsp;MB</div>
-                    </div>
-
-                    <!-- File Pill -->
-                    <div id="filePill" class="file-pill">
-                        <span class="file-pill-icon">
-                            <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14,2 14,8 20,8"></polyline>
+                        <div id="filePillExtract" class="file-pill">
+                            <span class="file-pill-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14,2 14,8 20,8"></polyline>
+                                </svg>
+                            </span>
+                            <span id="fileNameExtract" class="file-pill-name"></span>
+                            <button id="clearFileBtnExtract" class="file-pill-clear" type="button" title="Remove file">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="errorBannerExtract" class="banner banner-error">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
                             </svg>
-                        </span>
-                        <span id="fileName" class="file-pill-name"></span>
-                        <button id="clearFileBtn" class="file-pill-clear" type="button" title="Remove file">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            <span id="errorMessageExtract"></span>
+                        </div>
+                        <div id="warnBannerExtract" class="banner banner-warn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
                             </svg>
+                            <span id="warnMessageExtract"></span>
+                        </div>
+                        <button id="submitBtnExtract" class="submit-btn" type="button" disabled>
+                            <span id="submitSpinnerExtract" class="spinner"></span>
+                            <span id="submitLabelExtract">Extract Data</span>
+                        </button>
+                        <button id="resetBtnExtract" class="reset-btn" type="button" style="display:none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+                            </svg>
+                            Extract another file
                         </button>
                     </div>
+                </section>
 
-                    <!-- Error Banner -->
-                    <div id="errorBanner" class="banner banner-error" role="alert">
-                        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <span id="errorMessage"></span>
+                <section class="results-panel" id="resultsPanelExtract">
+                    <div class="results-card">
+                        <span class="section-label">Extracted Fields</span>
+                        <div class="field-row">
+                            <div class="field-label">Customer Name</div>
+                            <div id="resName" class="field-value">—</div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Master Account No.</div>
+                            <div id="resMasterAcc" class="field-value">—</div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Sub Account No.</div>
+                            <div id="resSubAcc" class="field-value">—</div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Address</div>
+                            <div id="resAddress" class="field-value">—</div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">FI Number</div>
+                            <div id="resFiNum" class="field-value">—</div>
+                        </div>
                     </div>
+                </section>
 
-                    <!-- Warn Banner -->
-                    <div id="warnBanner" class="banner banner-warn" role="status">
-                        <svg viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                            <line x1="12" y1="9" x2="12" y2="13"></line>
-                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                        </svg>
-                        <span id="warnMessage"></span>
+            </div>
+        </div>
+
+        <!-- TAB: STATEMENT SUMMARY -->
+        <div class="tab-panel" id="panelSummarise" style="display:none;">
+            <div class="page-container" id="pageContainerSummarise">
+
+                <section class="upload-panel">
+                    <div class="panel-header">
+                        <div class="hero-badge">Statement Summary</div>
+                        <h1 class="page-title">Bank Statement Summary</h1>
+                        <p class="page-subtitle">Upload a .txt bank statement to extract daily and monthly summaries.</p>
                     </div>
-
-                    <!-- Submit -->
-                    <button id="submitBtn" class="btn-primary" type="button" disabled>
-                        <span id="submitSpinner" class="spinner"></span>
-                        <span id="submitLabel">Extract Data</span>
-                    </button>
-
-                    <!-- Reset -->
-                    <button id="resetBtn" class="btn-secondary" type="button">
-                        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
-                            <polyline points="1 4 1 10 7 10"></polyline>
-                            <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
-                        </svg>
-                        Extract another file
-                    </button>
-                </div>
-
-            </section>
-
-            <!-- RIGHT: Results -->
-            <section class="results-panel" id="resultsPanel" aria-live="polite">
-                <div class="results-card">
-
-                    <div class="results-header">
-                        <span class="results-title">Extracted Fields</span>
-                        <span class="results-status">
-                            <span class="results-status-dot"></span>
-                            Completed
-                        </span>
+                    <div class="upload-card">
+                        <div class="section-label">Upload Statement</div>
+                        <div id="dropZoneSummarise" class="drop-zone">
+                            <input id="fileInputSummarise" type="file" accept=".txt,.pdf">
+                            <div class="drop-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14,2 14,8 20,8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <polyline points="9,15 12,12 15,15"></polyline>
+                                </svg>
+                            </div>
+                            <div class="drop-title">Drop your file here</div>
+                            <div class="drop-hint">Supports .txt and .pdf — max {{ max_upload_mb }} MB</div>
+                        </div>
+                        <div id="filePillSummarise" class="file-pill">
+                            <span class="file-pill-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14,2 14,8 20,8"></polyline>
+                                </svg>
+                            </span>
+                            <span id="fileNameSummarise" class="file-pill-name"></span>
+                            <button id="clearFileBtnSummarise" class="file-pill-clear" type="button" title="Remove file">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="errorBannerSummarise" class="banner banner-error">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span id="errorMessageSummarise"></span>
+                        </div>
+                        <div id="warnBannerSummarise" class="banner banner-warn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <span id="warnMessageSummarise"></span>
+                        </div>
+                        <button id="submitBtnSummarise" class="submit-btn" type="button" disabled>
+                            <span id="submitSpinnerSummarise" class="spinner"></span>
+                            <span id="submitLabelSummarise">Extract Summary</span>
+                        </button>
+                        <button id="resetBtnSummarise" class="reset-btn" type="button" style="display:none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+                            </svg>
+                            Extract another file
+                        </button>
                     </div>
+                </section>
 
-                    <div class="field-row">
-                        <div class="field-label">Customer Name</div>
-                        <div id="resName" class="field-value">&mdash;</div>
-                    </div>
-                    <div class="field-row">
-                        <div class="field-label">Master Account No.</div>
-                        <div id="resMasterAcc" class="field-value">&mdash;</div>
-                    </div>
-                    <div class="field-row">
-                        <div class="field-label">Sub Account No.</div>
-                        <div id="resSubAcc" class="field-value">&mdash;</div>
-                    </div>
-                    <div class="field-row">
-                        <div class="field-label">Address</div>
-                        <div id="resAddress" class="field-value">&mdash;</div>
-                    </div>
-                    <div class="field-row">
-                        <div class="field-label">FI Number</div>
-                        <div id="resFiNum" class="field-value">&mdash;</div>
-                    </div>
+                <section class="results-panel results-panel--wide" id="resultsPanelSummarise">
+                    <div class="results-card results-card--wide">
+                        <span class="section-label">Statement Summary</span>
 
-                </div>
-            </section>
+                        <div class="summary-section-title">Overall Totals</div>
+                        <div class="field-row">
+                            <div class="field-label">Total Debit</div>
+                            <div id="resOverallDebit" class="field-value">—</div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Total Credit</div>
+                            <div id="resOverallCredit" class="field-value">—</div>
+                        </div>
 
-        </main>
+                        <div class="summary-section-title" style="margin-top:18px;">Monthly Breakdown</div>
+                        <div id="resMonthlyTable" class="summary-table-wrap">—</div>
 
-        <!-- Footer -->
+                        <div class="summary-section-title" style="margin-top:18px;">Daily Breakdown</div>
+                        <div id="resDailyTable" class="summary-table-wrap">—</div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
         <footer class="page-footer">
             <span>{{ app_name }} v{{ app_version }}</span>
-            <span class="footer-dot"></span>
-            <span>Only .txt and .pdf files are supported</span>
-            <span class="footer-dot"></span>
-            <span>Max file size: {{ max_upload_mb }}&thinsp;MB</span>
+            <span>Supported: .txt and .pdf files</span>
+            <span>Max file size: {{ max_upload_mb }} MB</span>
         </footer>
+
     </div>
 
     <script src="{{ url_for('static', path='app.js') }}"></script>
