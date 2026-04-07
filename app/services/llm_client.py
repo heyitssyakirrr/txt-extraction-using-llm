@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 import httpx
 from fastapi import HTTPException
@@ -19,8 +20,23 @@ def _normalize_llm_output(response_json: dict) -> dict:
     logger.debug("Raw LLM response: %s", response_json)
 
     try:
-        parsed = json.loads(response_json["text"].strip())
-        return parsed
+        raw = response_json["text"].strip()
+
+        # Strategy 1: grab the LAST ```json ... ``` block
+        # The LLM writes explanation first, then puts the clean JSON at the end
+        code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+        if code_blocks:
+            logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
+            return json.loads(code_blocks[-1])
+
+        # Strategy 2: grab the LAST bare { ... } block
+        brace_blocks = re.findall(r"\{.*?\}", raw, re.DOTALL)
+        if brace_blocks:
+            logger.debug("Parsing from brace block (last of %d found)", len(brace_blocks))
+            return json.loads(brace_blocks[-1])
+
+        raise ValueError("No JSON object found in LLM response text.")
+
     except (KeyError, json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
