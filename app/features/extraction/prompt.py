@@ -11,6 +11,7 @@ Your task is to extract exactly five fields from a bank document.
 1. The document may or may not have labels. Do NOT rely only on labels.
 2. Use the full context of the document to determine the correct values.
 3. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
+4. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
 
 === HOW TO IDENTIFY EACH FIELD ===
 

@@ -14,6 +14,7 @@ Your task is to analyse a bank statement and extract a structured summary.
 4. Dates must be in YYYY-MM-DD format.
 5. Months must be in YYYY-MM format.
 6. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
+7. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
 
 === WHAT TO EXTRACT ===
 

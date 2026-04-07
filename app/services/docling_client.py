@@ -23,13 +23,13 @@ class DoclingClient:
             "Sending PDF '%s' (%d bytes) to Docling at %s",
             filename,
             len(pdf_bytes),
-            self.settings.docling_url,
+            self.settings.docling_ocr_url,
         )
 
         try:
             async with httpx.AsyncClient(timeout=self.settings.docling_timeout_seconds) as client:
                 response = await client.post(
-                    self.settings.docling_url,
+                    self.settings.docling_ocr_url,
                     files={"files": (filename, pdf_bytes, "application/pdf")},
                     data={
                         "ocr_engine": "tesserocr",
