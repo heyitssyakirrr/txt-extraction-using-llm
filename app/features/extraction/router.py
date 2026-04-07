@@ -10,7 +10,6 @@ from app.services.file_service import decode_txt_bytes, validate_and_read_upload
 from app.services.llm_client import LLMClient
 
 router = APIRouter(prefix="/extract", tags=["Extraction"])
-settings = get_settings()
 llm_client = LLMClient()
 docling_client = DoclingClient()
 

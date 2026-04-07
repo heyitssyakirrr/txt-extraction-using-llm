@@ -78,5 +78,3 @@ class LLMClient:
             raise HTTPException(status_code=502, detail=f"LLM microservice error: HTTP {exc.response.status_code}") from exc
         except httpx.RequestError as exc:
             raise HTTPException(status_code=502, detail="Unable to connect to LLM microservice.") from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=502, detail="LLM microservice returned invalid JSON.") from exc
