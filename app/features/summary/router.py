@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, UploadFile
 
-from app.core.config import get_settings
 from app.features.summary.prompt import build_summary_prompt
 from app.models.schemas import (
     DailySummary,
@@ -22,14 +21,14 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
     prompt = build_summary_prompt(original_text)
     llm_result = await llm_client.extract_fields(prompt)
 
-    raw_daily = llm_result.get("daily_summaries") or []
+    raw_daily   = llm_result.get("daily_summaries") or []
     raw_monthly = llm_result.get("monthly_summaries") or []
 
     daily_summaries = [
         DailySummary(
             date=row.get("date"),
-            total_debit=row.get("total_debit"),
-            total_credit=row.get("total_credit"),
+            total_withdrawal=row.get("total_withdrawal"),
+            total_deposit=row.get("total_deposit"),
             closing_balance=row.get("closing_balance"),
         )
         for row in raw_daily
@@ -39,8 +38,8 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
     monthly_summaries = [
         MonthlySummary(
             month=row.get("month"),
-            total_debit=row.get("total_debit"),
-            total_credit=row.get("total_credit"),
+            total_withdrawal=row.get("total_withdrawal"),
+            total_deposit=row.get("total_deposit"),
             min_balance=row.get("min_balance"),
             max_balance=row.get("max_balance"),
         )
@@ -54,8 +53,8 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
         data=SummaryResult(
             daily_summaries=daily_summaries,
             monthly_summaries=monthly_summaries,
-            overall_total_debit=llm_result.get("overall_total_debit"),
-            overall_total_credit=llm_result.get("overall_total_credit"),
+            overall_total_withdrawal=llm_result.get("overall_total_withdrawal"),
+            overall_total_deposit=llm_result.get("overall_total_deposit"),
         ),
         meta=ExtractionMeta(
             input_characters=len(original_text),

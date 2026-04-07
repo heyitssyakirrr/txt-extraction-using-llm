@@ -12,10 +12,39 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _extract_last_json_object(text: str) -> str | None:
+    """
+    Walk through the text character by character tracking brace depth.
+    Every time depth returns to 0 we've found a complete top-level {...} block.
+    We keep overwriting last_candidate so we always end up with the LAST one.
+    """
+    depth = 0
+    start = None
+    last_candidate = None
+
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                last_candidate = text[start:i + 1]
+
+    return last_candidate
+
+
 def _normalize_llm_output(response_json: dict) -> dict:
     """
     Parse the LLM response envelope and return the full parsed dict.
-    Both extraction and summary features call this — each picks the keys it needs.
+    Both extraction and summary features call this, each picks the keys it needs.
+
+    Qwen2.5 often returns explanation text alongside the JSON, so we extract
+    the JSON block explicitly rather than parsing the entire text value.
+    Priority:
+      1. Last ```json ... ``` code block  — most complete, LLM's final answer
+      2. Last complete {...} block found by brace-depth tracking — handles nested JSON
     """
     logger.debug("Raw LLM response: %s", response_json)
 
@@ -23,17 +52,16 @@ def _normalize_llm_output(response_json: dict) -> dict:
         raw = response_json["text"].strip()
 
         # Strategy 1: grab the LAST ```json ... ``` block
-        # The LLM writes explanation first, then puts the clean JSON at the end
         code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if code_blocks:
             logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
             return json.loads(code_blocks[-1])
 
-        # Strategy 2: grab the LAST bare { ... } block
-        brace_blocks = re.findall(r"\{.*?\}", raw, re.DOTALL)
-        if brace_blocks:
-            logger.debug("Parsing from brace block (last of %d found)", len(brace_blocks))
-            return json.loads(brace_blocks[-1])
+        # Strategy 2: brace-depth tracking — correctly handles nested arrays/objects
+        last_json = _extract_last_json_object(raw)
+        if last_json:
+            logger.debug("Parsing from brace-depth extraction")
+            return json.loads(last_json)
 
         raise ValueError("No JSON object found in LLM response text.")
 

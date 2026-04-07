@@ -16,26 +16,31 @@ Your task is to analyse a bank statement and extract a structured summary.
 6. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
 7. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
 
+=== DEFINING WITHDRAWAL AND DEPOSIT ===
+The document may use different terminology. Map them as follows:
+- WITHDRAWAL = money going OUT of the account (debit, DR, withdrawal, "-" amount)
+- DEPOSIT    = money coming IN to the account  (credit, CR, deposit, "+" amount)
+
 === WHAT TO EXTRACT ===
 
 DAILY SUMMARIES:
 For each day that has at least one transaction:
-- date             : The date in YYYY-MM-DD format
-- total_debit      : Sum of all debit amounts for that day
-- total_credit     : Sum of all credit amounts for that day
-- closing_balance  : The account balance at end of that day
+- date               : The date in YYYY-MM-DD format
+- total_withdrawal   : Sum of all withdrawal amounts for that day
+- total_deposit      : Sum of all deposit amounts for that day
+- closing_balance    : The account balance at end of that day
 
 MONTHLY SUMMARIES:
 For each month present in the statement:
-- month        : The month in YYYY-MM format
-- total_debit  : Sum of all debits for that month
-- total_credit : Sum of all credits for that month
-- min_balance  : The lowest balance recorded during that month
-- max_balance  : The highest balance recorded during that month
+- month              : The month in YYYY-MM format
+- total_withdrawal   : Sum of all withdrawals for that month
+- total_deposit      : Sum of all deposits for that month
+- min_balance        : The lowest balance recorded during that month
+- max_balance        : The highest balance recorded during that month
 
 OVERALL TOTALS (across the entire statement):
-- overall_total_debit  : Grand total of all debit amounts
-- overall_total_credit : Grand total of all credit amounts
+- overall_total_withdrawal : Grand total of all withdrawal amounts
+- overall_total_deposit    : Grand total of all deposit amounts
 
 === DOCUMENT ===
 \"\"\"
@@ -48,21 +53,21 @@ Return ONLY this JSON object with no other text:
     "daily_summaries": [
         {{
             "date": "YYYY-MM-DD",
-            "total_debit": "0.00",
-            "total_credit": "0.00",
+            "total_withdrawal": "0.00",
+            "total_deposit": "0.00",
             "closing_balance": "0.00"
         }}
     ],
     "monthly_summaries": [
         {{
             "month": "YYYY-MM",
-            "total_debit": "0.00",
-            "total_credit": "0.00",
+            "total_withdrawal": "0.00",
+            "total_deposit": "0.00",
             "min_balance": "0.00",
             "max_balance": "0.00"
         }}
     ],
-    "overall_total_debit": "0.00",
-    "overall_total_credit": "0.00"
+    "overall_total_withdrawal": "0.00",
+    "overall_total_deposit": "0.00"
 }}
 """

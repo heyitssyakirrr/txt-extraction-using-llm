@@ -34,15 +34,15 @@ class ExtractResponse(BaseModel):
 
 class DailySummary(BaseModel):
     date: str | None = Field(default=None)
-    total_debit: str | None = Field(default=None)
-    total_credit: str | None = Field(default=None)
+    total_withdrawal: str | None = Field(default=None)
+    total_deposit: str | None = Field(default=None)
     closing_balance: str | None = Field(default=None)
 
 
 class MonthlySummary(BaseModel):
     month: str | None = Field(default=None)
-    total_debit: str | None = Field(default=None)
-    total_credit: str | None = Field(default=None)
+    total_withdrawal: str | None = Field(default=None)
+    total_deposit: str | None = Field(default=None)
     min_balance: str | None = Field(default=None)
     max_balance: str | None = Field(default=None)
 
@@ -50,8 +50,8 @@ class MonthlySummary(BaseModel):
 class SummaryResult(BaseModel):
     daily_summaries: List[DailySummary] = Field(default_factory=list)
     monthly_summaries: List[MonthlySummary] = Field(default_factory=list)
-    overall_total_debit: str | None = Field(default=None)
-    overall_total_credit: str | None = Field(default=None)
+    overall_total_withdrawal: str | None = Field(default=None)
+    overall_total_deposit: str | None = Field(default=None)
 
 
 class SummaryResponse(BaseModel):

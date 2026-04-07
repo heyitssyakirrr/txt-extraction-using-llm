@@ -227,8 +227,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // -------------------------------------------------------------------------
     // STATEMENT SUMMARY WIDGET
     // -------------------------------------------------------------------------
-    var resOverallDebit  = document.getElementById("resOverallDebit");
-    var resOverallCredit = document.getElementById("resOverallCredit");
+    var resOverallWithdrawal  = document.getElementById("resOverallWithdrawal");
+    var resOverallDeposit = document.getElementById("resOverallDeposit");
     var resMonthlyTable  = document.getElementById("resMonthlyTable");
     var resDailyTable    = document.getElementById("resDailyTable");
 
@@ -253,22 +253,22 @@ document.addEventListener("DOMContentLoaded", function () {
         onResults: function (result) {
             var data = result.data || {};
 
-            setField(resOverallDebit,  data.overall_total_debit);
-            setField(resOverallCredit, data.overall_total_credit);
+            setField(resOverallWithdrawal, data.overall_total_withdrawal);
+            setField(resOverallDeposit,    data.overall_total_deposit);
 
             var monthly = data.monthly_summaries || [];
             if (monthly.length) {
                 var mHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Month</th><th>Total Debit</th><th>Total Credit</th><th>Min Balance</th><th>Max Balance</th>" +
+                    "<th>Month</th><th>Total Withdrawal</th><th>Total Deposit</th><th>Min Balance</th><th>Max Balance</th>" +
                     "</tr></thead><tbody>";
                 for (var i = 0; i < monthly.length; i++) {
                     var m = monthly[i];
                     mHtml += "<tr>" +
-                        "<td>" + (m.month       || "—") + "</td>" +
-                        "<td>" + (m.total_debit  || "—") + "</td>" +
-                        "<td>" + (m.total_credit || "—") + "</td>" +
-                        "<td>" + (m.min_balance  || "—") + "</td>" +
-                        "<td>" + (m.max_balance  || "—") + "</td>" +
+                        "<td>" + (m.month             || "—") + "</td>" +
+                        "<td>" + (m.total_withdrawal   || "—") + "</td>" +
+                        "<td>" + (m.total_deposit      || "—") + "</td>" +
+                        "<td>" + (m.min_balance        || "—") + "</td>" +
+                        "<td>" + (m.max_balance        || "—") + "</td>" +
                         "</tr>";
                 }
                 mHtml += "</tbody></table>";
@@ -280,14 +280,14 @@ document.addEventListener("DOMContentLoaded", function () {
             var daily = data.daily_summaries || [];
             if (daily.length) {
                 var dHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Date</th><th>Total Debit</th><th>Total Credit</th><th>Closing Balance</th>" +
+                    "<th>Date</th><th>Total Withdrawal</th><th>Total Deposit</th><th>Closing Balance</th>" +
                     "</tr></thead><tbody>";
                 for (var j = 0; j < daily.length; j++) {
                     var d = daily[j];
                     dHtml += "<tr>" +
                         "<td>" + (d.date            || "—") + "</td>" +
-                        "<td>" + (d.total_debit      || "—") + "</td>" +
-                        "<td>" + (d.total_credit     || "—") + "</td>" +
+                        "<td>" + (d.total_withdrawal || "—") + "</td>" +
+                        "<td>" + (d.total_deposit    || "—") + "</td>" +
                         "<td>" + (d.closing_balance  || "—") + "</td>" +
                         "</tr>";
                 }
@@ -299,8 +299,8 @@ document.addEventListener("DOMContentLoaded", function () {
         },
 
         onReset: function () {
-            setField(resOverallDebit,  null);
-            setField(resOverallCredit, null);
+            setField(resOverallWithdrawal, null);
+            setField(resOverallDeposit,    null);
             resMonthlyTable.innerHTML = "—";
             resDailyTable.innerHTML   = "—";
         }
