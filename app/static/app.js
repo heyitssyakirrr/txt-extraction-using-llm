@@ -14,9 +14,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // -------------------------------------------------------------------------
     // GENERIC UPLOAD WIDGET FACTORY
-    // Each tab gets its own independent instance — no shared state between tabs.
-    // To add a new tab in future: call createUploadWidget() with new cfg and
-    // implement onResults / onReset for that tab's specific display logic.
     // -------------------------------------------------------------------------
     function createUploadWidget(cfg) {
         var selectedFile = null;
@@ -36,7 +33,6 @@ document.addEventListener("DOMContentLoaded", function () {
         var resetBtn      = document.getElementById(cfg.resetBtnId);
         var pageContainer = document.getElementById(cfg.pageContainerId);
 
-        // Drag and drop
         dropZone.addEventListener("dragover", function (e) {
             e.preventDefault();
             dropZone.classList.add("drag-over");
@@ -60,7 +56,6 @@ document.addEventListener("DOMContentLoaded", function () {
             clearFile();
         });
 
-        // Submit
         submitBtn.addEventListener("click", function () {
             if (!selectedFile) {
                 showError("Please select a file first.");
@@ -109,8 +104,8 @@ document.addEventListener("DOMContentLoaded", function () {
         function setFile(file) {
             hideBanners();
             var lower = file.name.toLowerCase();
-            if (!lower.endsWith(".txt") && !lower.endsWith(".pdf")) {
-                showError("Only .txt and .pdf files are supported.");
+            if (!lower.endsWith(".txt") && !lower.endsWith(".pdf") && !lower.endsWith(".md")) {
+                showError("Only .txt, .pdf, and .md files are supported.");
                 return;
             }
             if (file.size > maxUploadMb * 1024 * 1024) {
@@ -227,10 +222,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // -------------------------------------------------------------------------
     // STATEMENT SUMMARY WIDGET
     // -------------------------------------------------------------------------
-    var resOverallWithdrawal  = document.getElementById("resOverallWithdrawal");
-    var resOverallDeposit = document.getElementById("resOverallDeposit");
-    var resMonthlyTable  = document.getElementById("resMonthlyTable");
-    var resDailyTable    = document.getElementById("resDailyTable");
+    var resOverallMin     = document.getElementById("resOverallMin");
+    var resOverallMax     = document.getElementById("resOverallMax");
+    var resOverallClosing = document.getElementById("resOverallClosing");
+    var resMonthlyTable   = document.getElementById("resMonthlyTable");
+    var resDailyTable     = document.getElementById("resDailyTable");
 
     var summariseWidget = createUploadWidget({
         dropZoneId:      "dropZoneSummarise",
@@ -253,22 +249,24 @@ document.addEventListener("DOMContentLoaded", function () {
         onResults: function (result) {
             var data = result.data || {};
 
-            setField(resOverallWithdrawal, data.overall_total_withdrawal);
-            setField(resOverallDeposit,    data.overall_total_deposit);
+            // Overall stats
+            setField(resOverallMin,     data.overall_min_balance);
+            setField(resOverallMax,     data.overall_max_balance);
+            setField(resOverallClosing, data.overall_closing_balance);
 
+            // Monthly breakdown
             var monthly = data.monthly_summaries || [];
             if (monthly.length) {
                 var mHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Month</th><th>Total Withdrawal</th><th>Total Deposit</th><th>Min Balance</th><th>Max Balance</th>" +
+                    "<th>Month</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
                     "</tr></thead><tbody>";
                 for (var i = 0; i < monthly.length; i++) {
                     var m = monthly[i];
                     mHtml += "<tr>" +
-                        "<td>" + (m.month             || "—") + "</td>" +
-                        "<td>" + (m.total_withdrawal   || "—") + "</td>" +
-                        "<td>" + (m.total_deposit      || "—") + "</td>" +
-                        "<td>" + (m.min_balance        || "—") + "</td>" +
-                        "<td>" + (m.max_balance        || "—") + "</td>" +
+                        "<td>" + (m.month           || "—") + "</td>" +
+                        "<td>" + (m.min_balance      || "—") + "</td>" +
+                        "<td>" + (m.max_balance      || "—") + "</td>" +
+                        "<td>" + (m.closing_balance  || "—") + "</td>" +
                         "</tr>";
                 }
                 mHtml += "</tbody></table>";
@@ -277,17 +275,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 resMonthlyTable.textContent = "No monthly data found.";
             }
 
+            // Daily breakdown
             var daily = data.daily_summaries || [];
             if (daily.length) {
                 var dHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Date</th><th>Total Withdrawal</th><th>Total Deposit</th><th>Closing Balance</th>" +
+                    "<th>Date</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
                     "</tr></thead><tbody>";
                 for (var j = 0; j < daily.length; j++) {
                     var d = daily[j];
                     dHtml += "<tr>" +
                         "<td>" + (d.date            || "—") + "</td>" +
-                        "<td>" + (d.total_withdrawal || "—") + "</td>" +
-                        "<td>" + (d.total_deposit    || "—") + "</td>" +
+                        "<td>" + (d.min_balance      || "—") + "</td>" +
+                        "<td>" + (d.max_balance      || "—") + "</td>" +
                         "<td>" + (d.closing_balance  || "—") + "</td>" +
                         "</tr>";
                 }
@@ -299,8 +298,9 @@ document.addEventListener("DOMContentLoaded", function () {
         },
 
         onReset: function () {
-            setField(resOverallWithdrawal, null);
-            setField(resOverallDeposit,    null);
+            setField(resOverallMin,     null);
+            setField(resOverallMax,     null);
+            setField(resOverallClosing, null);
             resMonthlyTable.innerHTML = "—";
             resDailyTable.innerHTML   = "—";
         }

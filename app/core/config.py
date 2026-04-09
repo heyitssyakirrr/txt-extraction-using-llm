@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------------------
     llm_base_url: str = ""
     llm_extract_endpoint: str = ""
-    llm_timeout_seconds: float = 300.0
+    llm_timeout_seconds: float = 600.0
     llm_api_key: str | None = None
     llm_model_name: str = ""
     helper_id: str = ""

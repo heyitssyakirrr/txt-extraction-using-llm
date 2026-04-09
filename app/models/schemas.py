@@ -12,7 +12,6 @@ class ExtractionResult(BaseModel):
     sub_account_number: str | None = Field(default=None)
     address: str | None = Field(default=None)
     fi_num: str | None = Field(default=None)
-    # FUTURE FIELDS: add here
 
 
 class ExtractionMeta(BaseModel):
@@ -29,40 +28,48 @@ class ExtractResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Bank statement summary extraction schemas
+# Bank statement summary schemas
 # ---------------------------------------------------------------------------
 
+class RawBalanceRow(BaseModel):
+    """Single row returned by the LLM: just date + running balance."""
+    date: str
+    balance: str
+
+
 class DailySummary(BaseModel):
-    date: str | None = Field(default=None)
-    total_withdrawal: str | None = Field(default=None)
-    total_deposit: str | None = Field(default=None)
-    closing_balance: str | None = Field(default=None)
+    """Computed by Python from raw LLM rows — one entry per unique date."""
+    date: str
+    min_balance: str
+    max_balance: str
+    closing_balance: str   # last balance recorded on that date
 
 
 class MonthlySummary(BaseModel):
-    month: str | None = Field(default=None)
-    total_withdrawal: str | None = Field(default=None)
-    total_deposit: str | None = Field(default=None)
-    min_balance: str | None = Field(default=None)
-    max_balance: str | None = Field(default=None)
+    """Computed by Python — aggregated from DailySummary entries."""
+    month: str             # YYYY-MM
+    min_balance: str
+    max_balance: str
+    closing_balance: str   # last daily closing balance of the month
 
 
 class SummaryResult(BaseModel):
     daily_summaries: List[DailySummary] = Field(default_factory=list)
     monthly_summaries: List[MonthlySummary] = Field(default_factory=list)
-    overall_total_withdrawal: str | None = Field(default=None)
-    overall_total_deposit: str | None = Field(default=None)
+    overall_min_balance: str | None = Field(default=None)
+    overall_max_balance: str | None = Field(default=None)
+    overall_closing_balance: str | None = Field(default=None)
 
 
 class SummaryResponse(BaseModel):
     success: bool
     message: str
     data: SummaryResult
-    meta: ExtractionMeta  # reused — same shape
+    meta: ExtractionMeta
 
 
 # ---------------------------------------------------------------------------
-# Shared LLM communication schemas (used by both features)
+# Shared LLM communication schemas
 # ---------------------------------------------------------------------------
 
 class LLMRequestPayload(BaseModel):
