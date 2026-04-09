@@ -87,6 +87,7 @@ class LLMClient:
             "prompt": prompt,
             "model": self.settings.llm_model_name,
             "helper_id": self.settings.helper_id,
+            # max tokens? 
         }
         logger.debug("Calling LLM microservice at %s", self.settings.llm_url)
 
@@ -98,6 +99,7 @@ class LLMClient:
                     json=payload,
                 )
             response.raise_for_status()
+            logger.debug("LLM response time: finished. Raw length: %d chars", len(response.text))
             return _normalize_llm_output(response.json())
 
         except httpx.TimeoutException as exc:

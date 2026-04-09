@@ -10,9 +10,10 @@ Your task is to read a bank statement and extract ONLY two columns from every tr
 === RULES ===
 0. You are in JSON-only mode. Your entire response must be a single JSON object. Stop immediately after the closing brace. No introduction, no explanation, no conclusion.
 1. Extract EVERY transaction row — do not skip any.
-2. "date" must be in YYYY-MM-DD format.
+2. "date" can be in any common format (e.g., "01/01/2023", "011224" etc.), but must be returned in YYYY-MM-DD format.
 3. "balance" is the running account balance AFTER that transaction (the balance/running-balance column). Return it as a plain numeric string with 2 decimal places, e.g. "1234.56". Never include currency symbols or commas.
 4. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
+5. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
 
 === DOCUMENT ===
 \"\"\"
@@ -24,7 +25,6 @@ Return ONLY and EXACTLY like this JSON object with no other text:
 {{
     "rows": [
         {{"date": "YYYY-MM-DD", "balance": "0.00"}},
-        {{"date": "YYYY-MM-DD", "balance": "0.00"}}
     ]
 }}
 """
