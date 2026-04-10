@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_model_name: str = ""
     helper_id: str = ""
+    max_tokens: int = 2048
 
     # ---------------------------------------------------------------------------
     # Docling OCR microservice configuration

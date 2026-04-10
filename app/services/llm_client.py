@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from time import time
 
 import httpx
 from fastapi import HTTPException
@@ -87,11 +88,14 @@ class LLMClient:
             "prompt": prompt,
             "model": self.settings.llm_model_name,
             "helper_id": self.settings.helper_id,
+            "max_tokens": self.settings.llm_max_tokens,  
             # max tokens? 
         }
+        logger.debug("Prompt length: %d characters", len(prompt))
         logger.debug("Calling LLM microservice at %s", self.settings.llm_url)
 
         try:
+            t0 = time.time()
             async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
                 response = await client.post(
                     self.settings.llm_url,
@@ -100,6 +104,7 @@ class LLMClient:
                 )
             response.raise_for_status()
             logger.debug("LLM response time: finished. Raw length: %d chars", len(response.text))
+            logger.debug("LLM HTTP call took %.1fs", time.time() - t0)
             return _normalize_llm_output(response.json())
 
         except httpx.TimeoutException as exc:
