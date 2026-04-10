@@ -119,7 +119,10 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
 
 async def _run_summarisation(original_text: str, source: str) -> SummaryResponse:
     prompt = build_summary_prompt(original_text)
-    llm_result = await llm_client.extract_fields(prompt)
+    llm_result = await llm_client.extract_fields(
+        prompt,
+        stop=["} {", "\n} {", "\n}{"]
+    )
 
     # LLM returns {"rows": [{"date": ..., "balance": ...}, ...]}
     raw_rows = llm_result.get("rows") or []

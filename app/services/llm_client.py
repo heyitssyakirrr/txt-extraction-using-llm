@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from time import time
+from tracemalloc import stop
 
 import httpx
 from fastapi import HTTPException
@@ -63,6 +64,18 @@ def _normalize_llm_output(response_json: dict) -> dict:
         if last_json:
             logger.debug("Parsing from brace-depth extraction")
             return json.loads(last_json)
+        
+        # Strategy 3 (NEW): Qwen stop-token truncation repair
+        # Happens when stop token fires before the final closing brace is written.
+        # The text ends with a valid array but missing the outer '}'
+        logger.debug("Attempting truncation repair")
+        repaired = raw
+        if not repaired.endswith("}"):
+            repaired = repaired.rstrip() + "\n}"
+        last_json = _extract_last_json_object(repaired)
+        if last_json:
+            logger.debug("Parsing from repaired truncated JSON")
+            return json.loads(last_json)
 
         raise ValueError("No JSON object found in LLM response text.")
 
@@ -83,14 +96,16 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
         return headers
 
-    async def extract_fields(self, prompt: str) -> dict:
+    async def extract_fields(self, prompt: str, stop: list[str] | None = None) -> dict:
         payload = {
             "prompt": prompt,
             "model": self.settings.llm_model_name,
             "helper_id": self.settings.helper_id,
-            "max_tokens": self.settings.llm_max_tokens,  
-            # max tokens? 
+            "max_tokens": self.settings.llm_max_tokens, 
         }
+        if stop:
+            payload["stop"] = stop
+
         logger.debug("Prompt length: %d characters", len(prompt))
         logger.debug("Calling LLM microservice at %s", self.settings.llm_url)
 
