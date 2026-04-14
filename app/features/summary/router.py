@@ -161,21 +161,30 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
 async def _call_llm_chunk(chunk_text: str, index: int, total: int) -> list[dict]:
     """
     Send one chunk to the LLM and return its rows.
-    Returns empty list on failure so one bad chunk never kills the whole request.
+    Retries once with a 3-second back-off on any failure.
+    Returns empty list after all retries fail so one bad chunk never kills the whole request.
     """
     logger.debug("Chunk %d/%d — sending %d lines", index + 1, total, chunk_text.count("\n") + 1)
-    try:
-        prompt = build_summary_prompt(chunk_text)
-        llm_result = await llm_client.extract_fields(
-            prompt,
-            stop=["} {", "\n} {", "\n}{"]
-        )
-        rows = llm_result.get("rows") or []
-        logger.debug("Chunk %d/%d — received %d rows", index + 1, total, len(rows))
-        return rows
-    except Exception as exc:
-        logger.warning("Chunk %d/%d failed: %s — skipping", index + 1, total, exc)
-        return []
+
+    last_exc = None
+    for attempt in range(2):  # attempt 0 = first try, attempt 1 = retry
+        if attempt > 0:
+            logger.warning("Chunk %d/%d — attempt %d failed: %s — retrying in 3s", index + 1, total, attempt, last_exc)
+            await asyncio.sleep(3)
+        try:
+            prompt = build_summary_prompt(chunk_text)
+            llm_result = await llm_client.extract_fields(
+                prompt,
+                stop=["} {", "\n} {", "\n}{"]
+            )
+            rows = llm_result.get("rows") or []
+            logger.debug("Chunk %d/%d — received %d rows", index + 1, total, len(rows))
+            return rows
+        except Exception as exc:
+            last_exc = exc
+
+    logger.warning("Chunk %d/%d — all attempts failed: %s — skipping", index + 1, total, last_exc)
+    return []
 
 
 async def _run_summarisation(original_text: str, source: str) -> SummaryResponse:
