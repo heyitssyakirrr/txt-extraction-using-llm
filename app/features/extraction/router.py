@@ -36,7 +36,7 @@ async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
     )
 
 
-@router.get("/health")
+@router.post("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
 

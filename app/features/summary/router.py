@@ -165,11 +165,11 @@ async def _call_llm_chunk(chunk_text: str, index: int, total: int) -> list[dict]
     """
     logger.debug("Chunk %d/%d — sending %d lines", index + 1, total, chunk_text.count("\n") + 1)
     try:
-        prompt = build_summary_prompt(
-            chunk_text,
+        prompt = build_summary_prompt(chunk_text)
+        llm_result = await llm_client.extract_fields(
+            prompt,
             stop=["} {", "\n} {", "\n}{"]
         )
-        llm_result = await llm_client.extract_fields(prompt)
         rows = llm_result.get("rows") or []
         logger.debug("Chunk %d/%d — received %d rows", index + 1, total, len(rows))
         return rows
@@ -238,7 +238,7 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
 # Routes
 # ---------------------------------------------------------------------------
 
-@router.get("/health")
+@router.post("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from time import time
+import time
 from tracemalloc import stop
 
 import httpx
@@ -101,7 +101,7 @@ class LLMClient:
             "prompt": prompt,
             "model": self.settings.llm_model_name,
             "helper_id": self.settings.helper_id,
-            "max_tokens": self.settings.llm_max_tokens, 
+            #"max_tokens": self.settings.max_tokens, 
         }
         if stop:
             payload["stop"] = stop
