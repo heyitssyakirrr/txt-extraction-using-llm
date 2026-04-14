@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+import re
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, File, UploadFile
 
+from app.core.config import get_settings
 from app.features.summary.prompt import build_summary_prompt
 from app.models.schemas import (
     DailySummary,
@@ -18,16 +22,68 @@ from app.services.llm_client import LLMClient
 
 router = APIRouter(prefix="/summarise", tags=["Summarisation"])
 llm_client = LLMClient()
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Tuneable constant — adjust based on LLM thread/batch capacity
+# ---------------------------------------------------------------------------
+ROWS_PER_CHUNK = 20  # 20 preprocessed rows per chunk ~ safe output token count
 
 
 # ---------------------------------------------------------------------------
-# Pure-Python arithmetic — no LLM involvement
+# Pre-processing — strip everything except date + balance before LLM sees it
+# ---------------------------------------------------------------------------
+
+def _preprocess_statement(text: str) -> list[str]:
+    """
+    Parse the markdown table in Python and return only the meaningful lines.
+    Each output line: "DDMMYY | 1,234.56DR"
+
+    Returns a list of clean row strings (not a single joined string) so the
+    caller can chunk them freely without re-splitting.
+    """
+    rows = []
+    for line in text.splitlines():
+        if not (line.startswith("|") and line.endswith("|")):
+            continue
+        if re.match(r'^\|[-| :]+\|$', line):
+            continue
+
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 2:
+            continue
+
+        date_col = cols[0]
+        if not re.match(r'^\d{6}$|^\d{4}-\d{2}-\d{2}$', date_col):
+            continue
+
+        balance_col = cols[-1]
+        if not re.search(r'\d', balance_col):
+            continue
+
+        rows.append(f"{date_col} | {balance_col}")
+
+    return rows
+
+
+def _chunk_rows(rows: list[str], chunk_size: int) -> list[str]:
+    """
+    Split list of preprocessed row strings into chunks.
+    Each chunk is a single joined string ready to embed in a prompt.
+    """
+    chunks = []
+    for i in range(0, len(rows), chunk_size):
+        chunk_text = "\n".join(rows[i:i + chunk_size])
+        chunks.append(chunk_text)
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Pure-Python arithmetic — unchanged from original
 # ---------------------------------------------------------------------------
 
 def _to_decimal(value: str) -> Decimal | None:
-    """Safely parse a balance string to Decimal; return None on failure."""
     try:
-        # strip currency symbols, spaces, commas  e.g. "RM 1,234.56" → "1234.56"
         cleaned = value.strip().lstrip("RMrm $").replace(",", "").strip()
         return Decimal(cleaned)
     except (InvalidOperation, AttributeError):
@@ -39,17 +95,6 @@ def _fmt(d: Decimal) -> str:
 
 
 def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
-    """
-    Given a list of {"date": "YYYY-MM-DD", "balance": "..."} dicts from the LLM,
-    compute daily and monthly summaries entirely in Python.
-
-    Per day  : min / max / closing (last) balance
-    Per month: min / max / closing (last daily closing) balance
-    Overall  : min / max / closing across the whole statement
-    """
-
-    # ── 1. Group balances by date (preserving insertion order for "last") ──
-    # date_balances[date] = list of Decimal balances in order seen
     date_balances: dict[str, list[Decimal]] = defaultdict(list)
 
     for row in raw_rows:
@@ -64,7 +109,6 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
     if not date_balances:
         return SummaryResult()
 
-    # ── 2. Build daily summaries ──
     daily_summaries: list[DailySummary] = []
     for date in sorted(date_balances.keys()):
         balances = date_balances[date]
@@ -73,15 +117,13 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
                 date=date,
                 min_balance=_fmt(min(balances)),
                 max_balance=_fmt(max(balances)),
-                closing_balance=_fmt(balances[-1]),   # last transaction of the day
+                closing_balance=_fmt(balances[-1]),
             )
         )
 
-    # ── 3. Build monthly summaries from daily data ──
-    # month_dailies[YYYY-MM] = list of DailySummary in order
     month_dailies: dict[str, list[DailySummary]] = defaultdict(list)
     for ds in daily_summaries:
-        month = ds.date[:7]   # "YYYY-MM"
+        month = ds.date[:7]
         month_dailies[month].append(ds)
 
     monthly_summaries: list[MonthlySummary] = []
@@ -94,11 +136,10 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
                 month=month,
                 min_balance=_fmt(min(all_mins)),
                 max_balance=_fmt(max(all_maxs)),
-                closing_balance=days[-1].closing_balance,  # last day of month
+                closing_balance=days[-1].closing_balance,
             )
         )
 
-    # ── 4. Overall stats ──
     all_bal_decimals = [
         bal for balances in date_balances.values() for bal in balances
     ]
@@ -114,20 +155,72 @@ def _compute_summaries(raw_rows: list[dict]) -> SummaryResult:
 
 
 # ---------------------------------------------------------------------------
-# Route logic
+# Parallel LLM calls
 # ---------------------------------------------------------------------------
 
+async def _call_llm_chunk(chunk_text: str, index: int, total: int) -> list[dict]:
+    """
+    Send one chunk to the LLM and return its rows.
+    Returns empty list on failure so one bad chunk never kills the whole request.
+    """
+    logger.debug("Chunk %d/%d — sending %d lines", index + 1, total, chunk_text.count("\n") + 1)
+    try:
+        prompt = build_summary_prompt(
+            chunk_text,
+            stop=["} {", "\n} {", "\n}{"]
+        )
+        llm_result = await llm_client.extract_fields(prompt)
+        rows = llm_result.get("rows") or []
+        logger.debug("Chunk %d/%d — received %d rows", index + 1, total, len(rows))
+        return rows
+    except Exception as exc:
+        logger.warning("Chunk %d/%d failed: %s — skipping", index + 1, total, exc)
+        return []
+
+
 async def _run_summarisation(original_text: str, source: str) -> SummaryResponse:
-    prompt = build_summary_prompt(original_text)
-    llm_result = await llm_client.extract_fields(
-        prompt,
-        stop=["} {", "\n} {", "\n}{"]
+    settings = get_settings()
+
+    # Step 1 — preprocess: strip everything except date + balance
+    preprocessed_rows = _preprocess_statement(original_text)
+    logger.debug(
+        "Preprocessed %d rows from %d input chars",
+        len(preprocessed_rows), len(original_text)
     )
 
-    # LLM returns {"rows": [{"date": ..., "balance": ...}, ...]}
-    raw_rows = llm_result.get("rows") or []
+    if not preprocessed_rows:
+        logger.warning("No transaction rows found after preprocessing")
+        return SummaryResponse(
+            success=False,
+            message="No transaction rows found in the uploaded statement.",
+            data=SummaryResult(),
+            meta=ExtractionMeta(
+                input_characters=len(original_text),
+                llm_called=False,
+                source=source,
+            ),
+        )
 
-    summary_result = _compute_summaries(raw_rows)
+    # Step 2 — chunk the preprocessed rows
+    chunks = _chunk_rows(preprocessed_rows, ROWS_PER_CHUNK)
+    logger.debug(
+        "%d rows split into %d chunks of up to %d rows each",
+        len(preprocessed_rows), len(chunks), ROWS_PER_CHUNK
+    )
+
+    # Step 3 — fire all chunks to LLM in parallel
+    tasks = [
+        _call_llm_chunk(chunk, i, len(chunks))
+        for i, chunk in enumerate(chunks)
+    ]
+    results = await asyncio.gather(*tasks)
+
+    # Step 4 — merge all rows in original order
+    all_rows = [row for chunk_rows in results for row in chunk_rows]
+    logger.debug("Total rows collected across all chunks: %d", len(all_rows))
+
+    # Step 5 — Python arithmetic, unchanged
+    summary_result = _compute_summaries(all_rows)
 
     return SummaryResponse(
         success=True,
@@ -140,6 +233,10 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
         ),
     )
 
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @router.get("/health")
 async def health_check() -> dict[str, str]:
