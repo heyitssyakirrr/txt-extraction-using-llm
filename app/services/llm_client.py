@@ -4,7 +4,6 @@ import json
 import logging
 import re
 import time
-from tracemalloc import stop
 
 import httpx
 from fastapi import HTTPException
@@ -12,6 +11,7 @@ from fastapi import HTTPException
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
 
 def _strip_trailing_commas(text: str) -> str:
     """
@@ -44,6 +44,7 @@ def _extract_last_json_object(text: str) -> str | None:
                 last_candidate = text[start:i + 1]
 
     return last_candidate
+
 
 def _extract_json_objects(text: str) -> list[str]:
     """
@@ -83,6 +84,20 @@ def _merge_non_empty_dicts(dicts: list[dict]) -> dict:
     return merged
 
 
+def _normalise_keys(d: dict) -> dict:
+    """
+    Normalise all keys to lowercase with underscores so that keys like
+    'Bank_Name', 'BANK_NAME', or 'bankname' all resolve to 'bank_name'.
+    This guards against LLMs that vary casing or spacing in key names.
+    """
+    normalised: dict = {}
+    for key, value in d.items():
+        # strip spaces, lower-case, replace spaces/hyphens with underscores
+        clean_key = re.sub(r'[\s\-]+', '_', key.strip()).lower()
+        normalised[clean_key] = value
+    return normalised
+
+
 def _normalize_llm_output(response_json: dict) -> dict:
     """
     Parse the LLM response envelope and return the full parsed dict.
@@ -92,7 +107,8 @@ def _normalize_llm_output(response_json: dict) -> dict:
     the JSON block explicitly rather than parsing the entire text value.
     Priority:
       1. Last ```json ... ``` code block  — most complete, LLM's final answer
-      2. Last complete {...} block found by brace-depth tracking — handles nested JSON
+      2. Last complete {...} block found by brace-depth tracking — handles adjacent JSON
+      3. Truncation repair — append missing closing brace and retry
     """
     logger.debug("Raw LLM response: %s", response_json)
 
@@ -103,29 +119,34 @@ def _normalize_llm_output(response_json: dict) -> dict:
         code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if code_blocks:
             logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
-            return json.loads(_strip_trailing_commas(code_blocks[-1]))
+            parsed = json.loads(_strip_trailing_commas(code_blocks[-1]))
+            result = _normalise_keys(parsed)
+            logger.debug("Parsed keys: %s", list(result.keys()))
+            return result
 
-        # Strategy 2: brace-depth tracking over all objects
+        # Strategy 2: brace-depth tracking over all objects.
         # Qwen sometimes returns two adjacent JSON objects; we merge non-empty fields
         # so we don't accidentally lose values like bank_name.
         json_blocks = _extract_json_objects(raw)
         if json_blocks:
             logger.debug("Parsing from brace-depth extraction (%d object(s))", len(json_blocks))
-            parsed_dicts = []
+            parsed_dicts: list[dict] = []
             for block in json_blocks:
                 try:
                     parsed = json.loads(_strip_trailing_commas(block))
                     if isinstance(parsed, dict):
-                        parsed_dicts.append(parsed)
-                except json.JSONDecodeError:
+                        parsed_dicts.append(_normalise_keys(parsed))
+                except json.JSONDecodeError as e:
+                    logger.warning("Failed to parse JSON block: %s | block: %.200s", e, block)
                     continue
 
             if parsed_dicts:
-                return _merge_non_empty_dicts(parsed_dicts)
-        
-        # Strategy 3 (NEW): Qwen stop-token truncation repair
+                merged = _merge_non_empty_dicts(parsed_dicts)
+                logger.debug("Merged keys from %d object(s): %s", len(parsed_dicts), list(merged.keys()))
+                return merged
+
+        # Strategy 3: Qwen stop-token truncation repair.
         # Happens when stop token fires before the final closing brace is written.
-        # The text ends with a valid array but missing the outer '}'
         logger.debug("Attempting truncation repair")
         repaired = raw
         if not repaired.endswith("}"):
@@ -133,7 +154,10 @@ def _normalize_llm_output(response_json: dict) -> dict:
         last_json = _extract_last_json_object(repaired)
         if last_json:
             logger.debug("Parsing from repaired truncated JSON")
-            return json.loads(_strip_trailing_commas(last_json))
+            parsed = json.loads(_strip_trailing_commas(last_json))
+            result = _normalise_keys(parsed)
+            logger.debug("Repaired parsed keys: %s", list(result.keys()))
+            return result
 
         raise ValueError("No JSON object found in LLM response text.")
 
@@ -159,7 +183,6 @@ class LLMClient:
             "prompt": prompt,
             "model": self.settings.llm_model_name,
             "helper_id": self.settings.helper_id,
-            #"max_tokens": self.settings.max_tokens, 
         }
         if stop:
             payload["stop"] = stop
@@ -176,9 +199,12 @@ class LLMClient:
                     json=payload,
                 )
             response.raise_for_status()
-            logger.debug("LLM response time: finished. Raw length: %d chars", len(response.text))
-            logger.debug("LLM HTTP call took %.1fs", time.time() - t0)
-            return _normalize_llm_output(response.json())
+            elapsed = time.time() - t0
+            logger.debug("LLM HTTP call took %.1fs, raw response length: %d chars", elapsed, len(response.text))
+
+            result = _normalize_llm_output(response.json())
+            logger.debug("Final extracted dict keys: %s", list(result.keys()))
+            return result
 
         except httpx.TimeoutException as exc:
             raise HTTPException(status_code=504, detail="LLM microservice timed out.") from exc

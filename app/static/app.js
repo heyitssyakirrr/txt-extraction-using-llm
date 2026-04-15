@@ -139,13 +139,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function showWarn(msg) {
-            warnMessage.textContent = msg;
+            var existing = warnMessage.textContent;
+            warnMessage.textContent = existing ? existing + " " + msg : msg;
             warnBanner.classList.add("visible");
         }
 
         function hideBanners() {
             errorBanner.classList.remove("visible");
             warnBanner.classList.remove("visible");
+            warnMessage.textContent = "";
+            errorMessage.textContent = "";
         }
 
         return { showWarn: showWarn };
@@ -155,15 +158,18 @@ document.addEventListener("DOMContentLoaded", function () {
     // SHARED FIELD HELPER
     // -------------------------------------------------------------------------
     function getExtractedValue(result, key) {
-        if (result && result.data && result.data[key]) {
+        // Primary source: result.data (the ExtractionResult fields)
+        if (result && result.data && result.data[key] != null && result.data[key] !== "") {
             return result.data[key];
         }
-        if (result && result.comparison && result.comparison[key] && result.comparison[key].extracted) {
+        // Fallback: result.comparison[key].extracted (FieldComparisonDetail)
+        if (result && result.comparison && result.comparison[key] &&
+            result.comparison[key].extracted != null && result.comparison[key].extracted !== "") {
             return result.comparison[key].extracted;
         }
         return null;
     }
-    
+
     function setField(el, value) {
         if (value) {
             el.textContent = value;
@@ -199,52 +205,42 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Overall badge
         if (!comparison.csv_row_found) {
-            html += '<div class="cmp-badge cmp-badge--warn">⚠ File not found in reference data (key: ' +
+            html += '<div class="cmp-badge cmp-badge--warn">&#9888; File not found in reference data (key: ' +
                 escHtml(comparison.filename_key) + ')</div>';
         } else if (comparison.all_match) {
-            html += '<div class="cmp-badge cmp-badge--pass">✓ All fields match</div>';
+            html += '<div class="cmp-badge cmp-badge--pass">&#10003; All fields match</div>';
         } else {
-            html += '<div class="cmp-badge cmp-badge--fail">✗ Mismatch detected</div>';
+            html += '<div class="cmp-badge cmp-badge--fail">&#10007; Mismatch detected</div>';
         }
 
-        if (comparison.csv_row_found) {
-            var fields = ["bank_name", "fi_num", "master_account_number", "sub_account_number"];
-            html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
-                '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
-                '</tr></thead><tbody>';
+        // Always render the table — show extracted vs expected for all fields
+        var fields = ["bank_name", "fi_num", "master_account_number", "sub_account_number"];
+        html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
+            '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
+            '</tr></thead><tbody>';
 
-            fields.forEach(function (key) {
-                var detail = comparison[key];
-                if (!detail) return;
-                var statusIcon  = detail.match ? '✓' : '✗';
-                var statusClass = detail.match ? 'cmp-pass' : 'cmp-fail';
-                html += '<tr class="' + statusClass + '">' +
-                    '<td class="cmp-field-name">' + FIELD_LABELS[key] + '</td>' +
-                    '<td>' + escHtml(detail.extracted || '—') + '</td>' +
-                    '<td>' + escHtml(detail.expected  || '—') + '</td>' +
-                    '<td class="cmp-status">' + statusIcon + '</td>' +
-                    '</tr>';
-            });
+        fields.forEach(function (key) {
+            var detail = comparison[key];
+            if (!detail) return;
 
-            html += '</tbody></table></div>';
-        } else {
-            html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
-                '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
-                '</tr></thead><tbody>';
+            var statusIcon, statusClass;
+            if (!comparison.csv_row_found) {
+                statusIcon  = "&#9888;";
+                statusClass = "cmp-warn";
+            } else {
+                statusIcon  = detail.match ? "&#10003;" : "&#10007;";
+                statusClass = detail.match ? "cmp-pass" : "cmp-fail";
+            }
 
-            Object.keys(FIELD_LABELS).forEach(function (key) {
-                var detail = comparison[key] || {};
-                html += '<tr class="cmp-fail">' +
-                    '<td class="cmp-field-name">' + FIELD_LABELS[key] + '</td>' +
-                    '<td>' + escHtml(detail.extracted || '—') + '</td>' +
-                    '<td>—</td>' +
-                    '<td class="cmp-status">⚠</td>' +
-                    '</tr>';
-            });
+            html += '<tr class="' + statusClass + '">' +
+                '<td class="cmp-field-name">' + FIELD_LABELS[key] + '</td>' +
+                '<td>' + escHtml(detail.extracted || "\u2014") + '</td>' +
+                '<td>' + escHtml(detail.expected  || "\u2014") + '</td>' +
+                '<td class="cmp-status">' + statusIcon + '</td>' +
+                '</tr>';
+        });
 
-            html += '</tbody></table></div>';
-        }
-
+        html += '</tbody></table></div>';
         panel.innerHTML = html;
     }
 
@@ -285,14 +281,19 @@ document.addEventListener("DOMContentLoaded", function () {
         submitLabel:     "Extract Data",
 
         onResults: function (result) {
+            // Debug: log raw API response to browser console for diagnosis
+            console.log("[Extraction] API response:", JSON.stringify(result, null, 2));
+
             var extractedValues = {
-                name: getExtractedValue(result, "name"),
+                name:                  getExtractedValue(result, "name"),
                 master_account_number: getExtractedValue(result, "master_account_number"),
-                sub_account_number: getExtractedValue(result, "sub_account_number"),
-                address: getExtractedValue(result, "address"),
-                fi_num: getExtractedValue(result, "fi_num"),
-                bank_name: getExtractedValue(result, "bank_name"),
+                sub_account_number:    getExtractedValue(result, "sub_account_number"),
+                address:               getExtractedValue(result, "address"),
+                fi_num:                getExtractedValue(result, "fi_num"),
+                bank_name:             getExtractedValue(result, "bank_name"),
             };
+
+            console.log("[Extraction] Resolved field values:", extractedValues);
 
             setField(resName,      extractedValues.name);
             setField(resMasterAcc, extractedValues.master_account_number);
@@ -301,8 +302,12 @@ document.addEventListener("DOMContentLoaded", function () {
             setField(resFiNum,     extractedValues.fi_num);
             setField(resBankName,  extractedValues.bank_name);
 
-            // Render comparison panel
+            // Render comparison panel first
             renderComparison(result.comparison || null);
+
+            // collect ALL warnings before showing — previously the second
+            // showWarn() call silently overwrote the first one.
+            var warnings = [];
 
             var missing = [];
             if (!extractedValues.name)                  missing.push("customer name");
@@ -311,15 +316,21 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!extractedValues.address)               missing.push("address");
             if (!extractedValues.fi_num)                missing.push("FI number");
             if (!extractedValues.bank_name)             missing.push("bank name");
-            if (missing.length) extractWidget.showWarn("Could not extract: " + missing.join(", ") + ".");
+            if (missing.length) {
+                warnings.push("Could not extract: " + missing.join(", ") + ".");
+            }
 
-            
             if (result.comparison && !result.comparison.csv_row_found) {
-                extractWidget.showWarn(
-                    "Reference row not found for file key '" + (result.comparison.filename_key || "unknown") + "'."
+                warnings.push(
+                    "Reference row not found for file key \u2018" +
+                    (result.comparison.filename_key || "unknown") + "\u2019."
                 );
             } else if (result.comparison && result.comparison.csv_row_found && !result.comparison.all_match) {
-                extractWidget.showWarn("Reference comparison detected mismatched fields.");
+                warnings.push("Reference comparison detected mismatched fields.");
+            }
+
+            if (warnings.length) {
+                extractWidget.showWarn(warnings.join(" "));
             }
         },
 
@@ -378,10 +389,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 for (var i = 0; i < monthly.length; i++) {
                     var m = monthly[i];
                     mHtml += "<tr>" +
-                        "<td>" + (m.month           || "—") + "</td>" +
-                        "<td>" + (m.min_balance      || "—") + "</td>" +
-                        "<td>" + (m.max_balance      || "—") + "</td>" +
-                        "<td>" + (m.closing_balance  || "—") + "</td>" +
+                        "<td>" + (m.month           || "\u2014") + "</td>" +
+                        "<td>" + (m.min_balance      || "\u2014") + "</td>" +
+                        "<td>" + (m.max_balance      || "\u2014") + "</td>" +
+                        "<td>" + (m.closing_balance  || "\u2014") + "</td>" +
                         "</tr>";
                 }
                 mHtml += "</tbody></table>";
@@ -399,10 +410,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 for (var j = 0; j < daily.length; j++) {
                     var d = daily[j];
                     dHtml += "<tr>" +
-                        "<td>" + (d.date            || "—") + "</td>" +
-                        "<td>" + (d.min_balance      || "—") + "</td>" +
-                        "<td>" + (d.max_balance      || "—") + "</td>" +
-                        "<td>" + (d.closing_balance  || "—") + "</td>" +
+                        "<td>" + (d.date            || "\u2014") + "</td>" +
+                        "<td>" + (d.min_balance      || "\u2014") + "</td>" +
+                        "<td>" + (d.max_balance      || "\u2014") + "</td>" +
+                        "<td>" + (d.closing_balance  || "\u2014") + "</td>" +
                         "</tr>";
                 }
                 dHtml += "</tbody></table>";
@@ -416,8 +427,8 @@ document.addEventListener("DOMContentLoaded", function () {
             setField(resOverallMin,     null);
             setField(resOverallMax,     null);
             setField(resOverallClosing, null);
-            resMonthlyTable.innerHTML = "—";
-            resDailyTable.innerHTML   = "—";
+            resMonthlyTable.innerHTML = "\u2014";
+            resDailyTable.innerHTML   = "\u2014";
         }
     });
 

@@ -548,15 +548,23 @@ html, body {
 }
 
 /* =========================================================
-   COMPARISON / VERIFICATION PANEL  — append to style.css
+   COMPARISON / VERIFICATION PANEL
    ========================================================= */
 
-/* Two-card row inside the wide results panel */
+/* Two-card column layout inside the wide results panel */
 .results-cards-row {
     display: flex;
     flex-direction: column;
     gap: 16px;
     width: 100%;
+}
+
+#comparisonPanel {
+    min-height: 0;
+}
+
+#comparisonPanel:not(:empty) {
+    padding: 28px 26px;
 }
 
 /* Overall badge */
@@ -639,8 +647,10 @@ html, body {
 /* Row-level colouring */
 .cmp-table tr.cmp-pass .cmp-status { color: var(--pb-success); }
 .cmp-table tr.cmp-fail .cmp-status { color: var(--pb-error); }
+.cmp-table tr.cmp-warn .cmp-status { color: var(--pb-warn); }
 .cmp-table tr.cmp-fail td { background: #fff8f8; }
 .cmp-table tr.cmp-pass td { background: #f8fdf9; }
+.cmp-table tr.cmp-warn td { background: var(--pb-warn-bg); }
 
 /* Wider results panel for extraction tab */
 .page-container.has-results .results-panel--wide {
