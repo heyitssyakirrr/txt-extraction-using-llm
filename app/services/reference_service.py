@@ -164,6 +164,10 @@ def compare_extraction(
         return ComparisonResult(
             filename_key=key,
             csv_row_found=False,
+            bank_name=FieldComparisonDetail(extracted=bank_name, expected=None, match=False),
+            fi_num=FieldComparisonDetail(extracted=fi_num, expected=None, match=False),
+            master_account_number=FieldComparisonDetail(extracted=master_account_number, expected=None, match=False),
+            sub_account_number=FieldComparisonDetail(extracted=sub_account_number, expected=None, match=False),
             all_match=False,
         )
 

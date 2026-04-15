@@ -45,6 +45,43 @@ def _extract_last_json_object(text: str) -> str | None:
 
     return last_candidate
 
+def _extract_json_objects(text: str) -> list[str]:
+    """
+    Return all complete top-level JSON object blocks in order.
+    """
+    depth = 0
+    start = None
+    candidates: list[str] = []
+
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                candidates.append(text[start:i + 1])
+
+    return candidates
+
+
+def _merge_non_empty_dicts(dicts: list[dict]) -> dict:
+    """
+    Merge dicts from left to right, only overriding when the new value is non-empty.
+    Helps when the LLM emits multiple JSON objects and some fields are null/missing
+    in later duplicates.
+    """
+    merged: dict = {}
+    for item in dicts:
+        for key, value in item.items():
+            if value is None:
+                continue
+            if isinstance(value, str) and value.strip() == "":
+                continue
+            merged[key] = value
+    return merged
+
 
 def _normalize_llm_output(response_json: dict) -> dict:
     """
@@ -68,11 +105,23 @@ def _normalize_llm_output(response_json: dict) -> dict:
             logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
             return json.loads(_strip_trailing_commas(code_blocks[-1]))
 
-        # Strategy 2: brace-depth tracking — correctly handles nested arrays/objects
-        last_json = _extract_last_json_object(raw)
-        if last_json:
-            logger.debug("Parsing from brace-depth extraction")
-            return json.loads(_strip_trailing_commas(last_json))
+        # Strategy 2: brace-depth tracking over all objects
+        # Qwen sometimes returns two adjacent JSON objects; we merge non-empty fields
+        # so we don't accidentally lose values like bank_name.
+        json_blocks = _extract_json_objects(raw)
+        if json_blocks:
+            logger.debug("Parsing from brace-depth extraction (%d object(s))", len(json_blocks))
+            parsed_dicts = []
+            for block in json_blocks:
+                try:
+                    parsed = json.loads(_strip_trailing_commas(block))
+                    if isinstance(parsed, dict):
+                        parsed_dicts.append(parsed)
+                except json.JSONDecodeError:
+                    continue
+
+            if parsed_dicts:
+                return _merge_non_empty_dicts(parsed_dicts)
         
         # Strategy 3 (NEW): Qwen stop-token truncation repair
         # Happens when stop token fires before the final closing brace is written.

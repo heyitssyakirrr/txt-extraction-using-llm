@@ -154,6 +154,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // -------------------------------------------------------------------------
     // SHARED FIELD HELPER
     // -------------------------------------------------------------------------
+    function getExtractedValue(result, key) {
+        if (result && result.data && result.data[key]) {
+            return result.data[key];
+        }
+        if (result && result.comparison && result.comparison[key] && result.comparison[key].extracted) {
+            return result.comparison[key].extracted;
+        }
+        return null;
+    }
+    
     function setField(el, value) {
         if (value) {
             el.textContent = value;
@@ -217,6 +227,22 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             html += '</tbody></table></div>';
+        } else {
+            html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
+                '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
+                '</tr></thead><tbody>';
+
+            Object.keys(FIELD_LABELS).forEach(function (key) {
+                var detail = comparison[key] || {};
+                html += '<tr class="cmp-fail">' +
+                    '<td class="cmp-field-name">' + FIELD_LABELS[key] + '</td>' +
+                    '<td>' + escHtml(detail.extracted || '—') + '</td>' +
+                    '<td>—</td>' +
+                    '<td class="cmp-status">⚠</td>' +
+                    '</tr>';
+            });
+
+            html += '</tbody></table></div>';
         }
 
         panel.innerHTML = html;
@@ -259,25 +285,42 @@ document.addEventListener("DOMContentLoaded", function () {
         submitLabel:     "Extract Data",
 
         onResults: function (result) {
-            var data = result.data || {};
-            setField(resName,      data.name);
-            setField(resMasterAcc, data.master_account_number);
-            setField(resSubAcc,    data.sub_account_number);
-            setField(resAddress,   data.address);
-            setField(resFiNum,     data.fi_num);
-            setField(resBankName,  data.bank_name);
+            var extractedValues = {
+                name: getExtractedValue(result, "name"),
+                master_account_number: getExtractedValue(result, "master_account_number"),
+                sub_account_number: getExtractedValue(result, "sub_account_number"),
+                address: getExtractedValue(result, "address"),
+                fi_num: getExtractedValue(result, "fi_num"),
+                bank_name: getExtractedValue(result, "bank_name"),
+            };
+
+            setField(resName,      extractedValues.name);
+            setField(resMasterAcc, extractedValues.master_account_number);
+            setField(resSubAcc,    extractedValues.sub_account_number);
+            setField(resAddress,   extractedValues.address);
+            setField(resFiNum,     extractedValues.fi_num);
+            setField(resBankName,  extractedValues.bank_name);
 
             // Render comparison panel
             renderComparison(result.comparison || null);
 
             var missing = [];
-            if (!data.name)                  missing.push("customer name");
-            if (!data.master_account_number) missing.push("master account number");
-            if (!data.sub_account_number)    missing.push("sub account number");
-            if (!data.address)               missing.push("address");
-            if (!data.fi_num)                missing.push("FI number");
-            if (!data.bank_name)             missing.push("bank name");
+            if (!extractedValues.name)                  missing.push("customer name");
+            if (!extractedValues.master_account_number) missing.push("master account number");
+            if (!extractedValues.sub_account_number)    missing.push("sub account number");
+            if (!extractedValues.address)               missing.push("address");
+            if (!extractedValues.fi_num)                missing.push("FI number");
+            if (!extractedValues.bank_name)             missing.push("bank name");
             if (missing.length) extractWidget.showWarn("Could not extract: " + missing.join(", ") + ".");
+
+            
+            if (result.comparison && !result.comparison.csv_row_found) {
+                extractWidget.showWarn(
+                    "Reference row not found for file key '" + (result.comparison.filename_key || "unknown") + "'."
+                );
+            } else if (result.comparison && result.comparison.csv_row_found && !result.comparison.all_match) {
+                extractWidget.showWarn("Reference comparison detected mismatched fields.");
+            }
         },
 
         onReset: function () {
