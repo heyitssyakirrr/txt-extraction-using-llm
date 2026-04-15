@@ -13,6 +13,15 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+def _strip_trailing_commas(text: str) -> str:
+    """
+    Remove trailing commas before closing brackets/braces.
+    Handles: [..., ] and {..., }
+    """
+    text = re.sub(r',\s*(\])', r'\1', text)
+    text = re.sub(r',\s*(\})', r'\1', text)
+    return text
+
 
 def _extract_last_json_object(text: str) -> str | None:
     """
@@ -57,13 +66,13 @@ def _normalize_llm_output(response_json: dict) -> dict:
         code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if code_blocks:
             logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
-            return json.loads(code_blocks[-1])
+            return json.loads(_strip_trailing_commas(code_blocks[-1]))
 
         # Strategy 2: brace-depth tracking — correctly handles nested arrays/objects
         last_json = _extract_last_json_object(raw)
         if last_json:
             logger.debug("Parsing from brace-depth extraction")
-            return json.loads(last_json)
+            return json.loads(_strip_trailing_commas(last_json))
         
         # Strategy 3 (NEW): Qwen stop-token truncation repair
         # Happens when stop token fires before the final closing brace is written.
@@ -75,7 +84,7 @@ def _normalize_llm_output(response_json: dict) -> dict:
         last_json = _extract_last_json_object(repaired)
         if last_json:
             logger.debug("Parsing from repaired truncated JSON")
-            return json.loads(last_json)
+            return json.loads(_strip_trailing_commas(last_json))
 
         raise ValueError("No JSON object found in LLM response text.")
 

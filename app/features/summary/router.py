@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from operator import index
 import re
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
@@ -27,7 +28,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Tuneable constant — adjust based on LLM thread/batch capacity
 # ---------------------------------------------------------------------------
-ROWS_PER_CHUNK = 20  # 20 preprocessed rows per chunk ~ safe output token count
+ROWS_PER_CHUNK = 5  # 20 preprocessed rows per chunk ~ safe output token count
+PARALLEL_WINDOW = 2  # number of chunks to send in parallel before awaiting results and sending more
+MAX_WINDOW_RETRIES = 3 
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +186,8 @@ async def _call_llm_chunk(chunk_text: str, index: int, total: int) -> list[dict]
         except Exception as exc:
             last_exc = exc
 
-    logger.warning("Chunk %d/%d — all attempts failed: %s — skipping", index + 1, total, last_exc)
-    return []
+    logger.error("Chunk %d/%d — all %d attempts failed: %s", index + 1, total, 2, last_exc)
+    return None   # None = failed, [] = succeeded but LLM returned no rows (different cases)
 
 
 async def _run_summarisation(original_text: str, source: str) -> SummaryResponse:
@@ -218,17 +221,100 @@ async def _run_summarisation(original_text: str, source: str) -> SummaryResponse
     )
 
     # Step 3 — fire all chunks to LLM in parallel
-    tasks = [
-        _call_llm_chunk(chunk, i, len(chunks))
-        for i, chunk in enumerate(chunks)
+    total_chunks = len(chunks)
+    results = [None] * total_chunks          # pre-fill with None, index-aligned
+    failed_indices = list(range(total_chunks))  # start: all chunks pending  
+
+    for retry_round in range(MAX_WINDOW_RETRIES):
+        if not failed_indices:
+            break  # everything succeeded
+
+        if retry_round > 0:
+            wait = 30 * retry_round  # round 1: wait 30s, round 2: wait 60s
+            logger.warning(
+                "Retry round %d/%d — %d chunks still failed, waiting %ds before retrying: chunks %s",
+                retry_round, MAX_WINDOW_RETRIES - 1,
+                len(failed_indices), wait,
+                [i + 1 for i in failed_indices],
+            )
+            await asyncio.sleep(wait)
+
+        # Process failed_indices in windows of PARALLEL_WINDOW
+        still_failed = []
+        pending = list(failed_indices)  # copy so we can iterate cleanly
+
+        for window_start in range(0, len(pending), PARALLEL_WINDOW):
+            window_indices = pending[window_start : window_start + PARALLEL_WINDOW]
+
+            logger.debug(
+                "Round %d — window: running chunks %s of %d in parallel",
+                retry_round + 1,
+                [i + 1 for i in window_indices],
+                total_chunks,
+            )
+
+            window_tasks = [
+                _call_llm_chunk(chunks[i], i, total_chunks)
+                for i in window_indices
+            ]
+            window_results = await asyncio.gather(*window_tasks)
+
+            for i, result in zip(window_indices, window_results):
+                if result is None:
+                    still_failed.append(i)   # mark for next retry round
+                else:
+                    results[i] = result      # slot result back in original order
+
+            # Breathing room between windows (skip after last window)
+            if window_start + PARALLEL_WINDOW < len(pending):
+                await asyncio.sleep(3)
+
+        failed_indices = still_failed
+
+    # After all retry rounds — report any permanently failed chunks
+    if failed_indices:
+        logger.error(
+            "Permanently failed chunks after %d rounds: %s — these rows will be missing from summary",
+            MAX_WINDOW_RETRIES,
+            [i + 1 for i in failed_indices],
+        )
+
+    # Flatten results — skip None (permanently failed chunks)
+    all_rows = [
+        row
+        for chunk_rows in results
+        if chunk_rows is not None          # skip permanently failed
+        for row in chunk_rows
     ]
-    results = await asyncio.gather(*tasks)
 
     # Step 4 — merge all rows in original order
     all_rows = [row for chunk_rows in results for row in chunk_rows]
     logger.debug("Total rows collected across all chunks: %d", len(all_rows))
 
-    # Step 5 — Python arithmetic, unchanged
+    # Step 5 - warn user if any chunks permanently failed
+    if failed_indices:
+        failed_row_ranges = [
+            f"rows {i * ROWS_PER_CHUNK + 1}–{min((i + 1) * ROWS_PER_CHUNK, len(preprocessed_rows))}"
+            for i in failed_indices
+        ]
+        logger.error("Missing from summary: %s", ", ".join(failed_row_ranges))
+        # Return partial success with warning instead of full failure
+        return SummaryResponse(
+            success=True,   # partial result is still usable
+            message=(
+                "Summarisation completed with warnings. "
+                f"Some transactions could not be processed: {', '.join(failed_row_ranges)}. "
+                "The summary may be incomplete."
+            ),
+            data=_compute_summaries(all_rows),
+            meta=ExtractionMeta(
+                input_characters=len(original_text),
+                llm_called=True,
+                source=source,
+            ),
+        )
+
+    # Step 6 — Python arithmetic, unchanged
     summary_result = _compute_summaries(all_rows)
 
     return SummaryResponse(
