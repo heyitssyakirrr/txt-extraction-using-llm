@@ -167,6 +167,70 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // -------------------------------------------------------------------------
+    // COMPARISON PANEL RENDERER
+    // -------------------------------------------------------------------------
+    function renderComparison(comparison) {
+        var panel = document.getElementById("comparisonPanel");
+        if (!panel) return;
+
+        if (!comparison) {
+            panel.innerHTML = "";
+            return;
+        }
+
+        var FIELD_LABELS = {
+            bank_name:             "Bank Name",
+            fi_num:                "FI Number",
+            master_account_number: "Master Account No.",
+            sub_account_number:    "Sub Account No.",
+        };
+
+        var html = '<span class="section-label">Verification</span>';
+
+        // Overall badge
+        if (!comparison.csv_row_found) {
+            html += '<div class="cmp-badge cmp-badge--warn">⚠ File not found in reference data (key: ' +
+                escHtml(comparison.filename_key) + ')</div>';
+        } else if (comparison.all_match) {
+            html += '<div class="cmp-badge cmp-badge--pass">✓ All fields match</div>';
+        } else {
+            html += '<div class="cmp-badge cmp-badge--fail">✗ Mismatch detected</div>';
+        }
+
+        if (comparison.csv_row_found) {
+            var fields = ["bank_name", "fi_num", "master_account_number", "sub_account_number"];
+            html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
+                '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
+                '</tr></thead><tbody>';
+
+            fields.forEach(function (key) {
+                var detail = comparison[key];
+                if (!detail) return;
+                var statusIcon  = detail.match ? '✓' : '✗';
+                var statusClass = detail.match ? 'cmp-pass' : 'cmp-fail';
+                html += '<tr class="' + statusClass + '">' +
+                    '<td class="cmp-field-name">' + FIELD_LABELS[key] + '</td>' +
+                    '<td>' + escHtml(detail.extracted || '—') + '</td>' +
+                    '<td>' + escHtml(detail.expected  || '—') + '</td>' +
+                    '<td class="cmp-status">' + statusIcon + '</td>' +
+                    '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+        }
+
+        panel.innerHTML = html;
+    }
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    // -------------------------------------------------------------------------
     // CUSTOMER DETAIL EXTRACTION WIDGET
     // -------------------------------------------------------------------------
     var resName      = document.getElementById("resName");
@@ -174,6 +238,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var resSubAcc    = document.getElementById("resSubAcc");
     var resAddress   = document.getElementById("resAddress");
     var resFiNum     = document.getElementById("resFiNum");
+    var resBankName  = document.getElementById("resBankName");
 
     var extractWidget = createUploadWidget({
         dropZoneId:      "dropZoneExtract",
@@ -200,6 +265,10 @@ document.addEventListener("DOMContentLoaded", function () {
             setField(resSubAcc,    data.sub_account_number);
             setField(resAddress,   data.address);
             setField(resFiNum,     data.fi_num);
+            setField(resBankName,  data.bank_name);
+
+            // Render comparison panel
+            renderComparison(result.comparison || null);
 
             var missing = [];
             if (!data.name)                  missing.push("customer name");
@@ -207,15 +276,18 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!data.sub_account_number)    missing.push("sub account number");
             if (!data.address)               missing.push("address");
             if (!data.fi_num)                missing.push("FI number");
+            if (!data.bank_name)             missing.push("bank name");
             if (missing.length) extractWidget.showWarn("Could not extract: " + missing.join(", ") + ".");
         },
 
         onReset: function () {
-            var fields = [resName, resMasterAcc, resSubAcc, resAddress, resFiNum];
+            var fields = [resName, resMasterAcc, resSubAcc, resAddress, resFiNum, resBankName];
             for (var i = 0; i < fields.length; i++) {
                 fields[i].textContent = "\u2014";
                 fields[i].className   = "field-value";
             }
+            var panel = document.getElementById("comparisonPanel");
+            if (panel) panel.innerHTML = "";
         }
     });
 

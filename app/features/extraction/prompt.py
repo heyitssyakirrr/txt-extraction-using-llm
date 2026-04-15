@@ -5,7 +5,7 @@ def build_extraction_prompt(text: str) -> str:
     """Prompt for customer detail extraction."""
     return f"""\
 You are a data extraction assistant for a Malaysian bank's internal system.
-Your task is to extract exactly five fields from a bank document.
+Your task is to extract exactly six fields from a bank document.
 
 === RULES ===
 0. You are in JSON-only mode. Your entire response must be a single JSON object. Stop immediately after the closing brace. No introduction, no explanation, no conclusion.
@@ -45,18 +45,26 @@ FI NUM:
 - Typically a short numeric or alphanumeric code identifying the bank/branch.
 - May be labelled as "FI No", "FI Number", "FI Num", or similar.
 
+BANK NAME:
+- The name of the bank that issued this document.
+- Look for the bank name in letterheads, headers, footers, or watermarks.
+- Return the official bank name exactly as it appears (e.g. "Affin Bank", "Maybank", "CIMB Bank").
+- Do NOT return branch names or department names — only the bank name.
+- Return null if the bank name cannot be determined.
+
 === DOCUMENT ===
 \"\"\"
 {text}
 \"\"\"
 
 === OUTPUT ===
-Return ONLY this JSON object with no other text:
+Return ONLY this JSON object with no other text or explanation:
 {{
     "name": "<full customer name or null>",
     "master_account_number": "<master account number or null>",
     "sub_account_number": "<sub account number or null>",
     "address": "<full address or null>",
-    "fi_num": "<FI number or null>"
+    "fi_num": "<FI number or null>",
+    "bank_name": "<bank name or null>"
 }}
 """

@@ -101,29 +101,42 @@
                     </div>
                 </section>
 
-                <section class="results-panel" id="resultsPanelExtract">
-                    <div class="results-card">
-                        <span class="section-label">Extracted Fields</span>
-                        <div class="field-row">
-                            <div class="field-label">Customer Name</div>
-                            <div id="resName" class="field-value">—</div>
+                <!-- RESULTS: extracted fields + verification side by side -->
+                <section class="results-panel results-panel--wide" id="resultsPanelExtract">
+                    <div class="results-cards-row">
+
+                        <!-- Extracted fields card -->
+                        <div class="results-card">
+                            <span class="section-label">Extracted Fields</span>
+                            <div class="field-row">
+                                <div class="field-label">Bank Name</div>
+                                <div id="resBankName" class="field-value">—</div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-label">Customer Name</div>
+                                <div id="resName" class="field-value">—</div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-label">Master Account No.</div>
+                                <div id="resMasterAcc" class="field-value">—</div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-label">Sub Account No.</div>
+                                <div id="resSubAcc" class="field-value">—</div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-label">Address</div>
+                                <div id="resAddress" class="field-value">—</div>
+                            </div>
+                            <div class="field-row">
+                                <div class="field-label">FI Number</div>
+                                <div id="resFiNum" class="field-value">—</div>
+                            </div>
                         </div>
-                        <div class="field-row">
-                            <div class="field-label">Master Account No.</div>
-                            <div id="resMasterAcc" class="field-value">—</div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-label">Sub Account No.</div>
-                            <div id="resSubAcc" class="field-value">—</div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-label">Address</div>
-                            <div id="resAddress" class="field-value">—</div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-label">FI Number</div>
-                            <div id="resFiNum" class="field-value">—</div>
-                        </div>
+
+                        <!-- Comparison / verification card (populated by JS) -->
+                        <div class="results-card" id="comparisonPanel"></div>
+
                     </div>
                 </section>
 

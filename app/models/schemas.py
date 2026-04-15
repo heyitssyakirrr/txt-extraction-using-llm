@@ -12,6 +12,7 @@ class ExtractionResult(BaseModel):
     sub_account_number: str | None = Field(default=None)
     address: str | None = Field(default=None)
     fi_num: str | None = Field(default=None)
+    bank_name: str | None = Field(default=None)   # NEW: extracted by LLM
 
 
 class ExtractionMeta(BaseModel):
@@ -20,11 +21,41 @@ class ExtractionMeta(BaseModel):
     source: str
 
 
+# ---------------------------------------------------------------------------
+# Comparison schemas  (NEW)
+# ---------------------------------------------------------------------------
+
+class FieldComparisonDetail(BaseModel):
+    """Per-field match result."""
+    extracted: str | None
+    expected: str | None
+    match: bool
+
+
+class ComparisonResult(BaseModel):
+    """
+    Populated when the uploaded filename is found in the reference CSV.
+    None when no matching CSV row exists (unknown file).
+    """
+    filename_key: str                           # e.g. "JSB-000486-25"
+    csv_row_found: bool
+
+    # Individual field verdicts (only present when csv_row_found=True)
+    bank_name:            FieldComparisonDetail | None = None
+    fi_num:               FieldComparisonDetail | None = None
+    master_account_number: FieldComparisonDetail | None = None
+    sub_account_number:   FieldComparisonDetail | None = None
+
+    # Overall verdict
+    all_match: bool = False
+
+
 class ExtractResponse(BaseModel):
     success: bool
     message: str
     data: ExtractionResult
     meta: ExtractionMeta
+    comparison: ComparisonResult | None = Field(default=None)   # NEW
 
 
 # ---------------------------------------------------------------------------

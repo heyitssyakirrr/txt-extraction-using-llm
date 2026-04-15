@@ -546,3 +546,103 @@ html, body {
 
     .page-footer { padding: 0 24px; }
 }
+
+/* =========================================================
+   COMPARISON / VERIFICATION PANEL  — append to style.css
+   ========================================================= */
+
+/* Two-card row inside the wide results panel */
+.results-cards-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+/* Overall badge */
+.cmp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.cmp-badge--pass {
+    background: var(--pb-success-bg);
+    color: var(--pb-success);
+    border: 1px solid #b2dfc5;
+}
+
+.cmp-badge--fail {
+    background: var(--pb-error-bg);
+    color: var(--pb-error);
+    border: 1px solid #ebc3c1;
+}
+
+.cmp-badge--warn {
+    background: var(--pb-warn-bg);
+    color: var(--pb-warn);
+    border: 1px solid #ead7a5;
+}
+
+/* Comparison table */
+.cmp-table-wrap {
+    overflow-x: auto;
+}
+
+.cmp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.cmp-table th {
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--pb-muted);
+    border-bottom: 1px solid var(--pb-border);
+    white-space: nowrap;
+}
+
+.cmp-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--pb-border);
+    color: var(--pb-text);
+    word-break: break-all;
+}
+
+.cmp-table tr:last-child td { border-bottom: none; }
+
+.cmp-table .cmp-field-name {
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--pb-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.cmp-table .cmp-status {
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Row-level colouring */
+.cmp-table tr.cmp-pass .cmp-status { color: var(--pb-success); }
+.cmp-table tr.cmp-fail .cmp-status { color: var(--pb-error); }
+.cmp-table tr.cmp-fail td { background: #fff8f8; }
+.cmp-table tr.cmp-pass td { background: #f8fdf9; }
+
+/* Wider results panel for extraction tab */
+.page-container.has-results .results-panel--wide {
+    width: 680px;
+}

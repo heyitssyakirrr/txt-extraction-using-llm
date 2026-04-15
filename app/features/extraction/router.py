@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, UploadFile
 
-from app.core.config import get_settings
 from app.features.extraction.prompt import build_extraction_prompt
 from app.models.schemas import ExtractResponse, ExtractionMeta, ExtractionResult
 from app.services.docling_client import DoclingClient
 from app.services.file_service import decode_txt_bytes, validate_and_read_upload
 from app.services.llm_client import LLMClient
+from app.services.reference_service import compare_extraction
 
 router = APIRouter(prefix="/extract", tags=["Extraction"])
 llm_client = LLMClient()
@@ -18,21 +18,34 @@ async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
     prompt = build_extraction_prompt(original_text)
     llm_result = await llm_client.extract_fields(prompt)
 
+    extracted = ExtractionResult(
+        name=llm_result.get("name"),
+        master_account_number=llm_result.get("master_account_number"),
+        sub_account_number=llm_result.get("sub_account_number"),
+        address=llm_result.get("address"),
+        fi_num=llm_result.get("fi_num"),
+        bank_name=llm_result.get("bank_name"),   # NEW
+    )
+
+    # Compare extracted fields against the reference CSV using the filename
+    comparison = compare_extraction(
+        filename_raw=source,
+        bank_name=extracted.bank_name,
+        fi_num=extracted.fi_num,
+        master_account_number=extracted.master_account_number,
+        sub_account_number=extracted.sub_account_number,
+    )
+
     return ExtractResponse(
         success=True,
         message="Extraction completed successfully.",
-        data=ExtractionResult(
-            name=llm_result.get("name"),
-            master_account_number=llm_result.get("master_account_number"),
-            sub_account_number=llm_result.get("sub_account_number"),
-            address=llm_result.get("address"),
-            fi_num=llm_result.get("fi_num"),
-        ),
+        data=extracted,
         meta=ExtractionMeta(
             input_characters=len(original_text),
             llm_called=True,
             source=source,
         ),
+        comparison=comparison,
     )
 
 
