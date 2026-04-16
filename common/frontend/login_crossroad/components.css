@@ -1,0 +1,224 @@
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    min-height: 36px;
+    padding: var(--sp-2) var(--sp-4);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+    border-color: var(--border);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.55;
+}
+
+.btn--primary {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn--secondary {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.btn--secondary:hover:not(:disabled) {
+    background: var(--hover);
+}
+
+.btn--danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn--danger:hover:not(:disabled) {
+    background: var(--error);
+    border-color: var(--error);
+}
+
+.btn--ghost {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.24);
+    color: #fff;
+    box-shadow: none;
+}
+
+.btn--ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.26);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
+.btn--sm {
+    min-height: 30px;
+    padding: 0 var(--sp-3);
+    font-size: var(--fs-sm);
+}
+
+.btn--lg {
+    min-height: 42px;
+    font-size: var(--fs-md);
+}
+
+.btn--block {
+    width: 100%;
+}
+
+.btn.is-active,
+.btn[aria-selected="true"] {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: none;
+}
+.btn.is-active:hover,
+.btn[aria-selected="true"]:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: #fff;
+}
+
+.input {
+    width: 100%;
+    min-height: 36px;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: var(--fs-base);
+}
+
+.input::placeholder {
+    color: var(--text-muted);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-base);
+    background: var(--surface);
+}
+
+.table th {
+    text-align: left;
+    padding: var(--sp-3);
+    border-bottom: 2px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.table td {
+    padding: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.table tbody tr:hover {
+    background: #fafafa;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(192, 0, 0, 0.16);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spinner-rotate 0.8s linear infinite;
+}
+
+.loading-state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--text-muted);
+    font-size: var(--fs-base);
+}
+
+.toast-container {
+    position: fixed;
+    right: var(--sp-6);
+    bottom: var(--sp-6);
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    pointer-events: none;
+}
+
+.toast {
+    min-width: 280px;
+    max-width: 420px;
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    color: var(--text);
+    font-size: var(--fs-base);
+    pointer-events: auto;
+    animation: toast-slide-in var(--transition-normal) forwards;
+}
+
+.toast--info {
+    border-color: var(--border);
+}
+
+.toast--success {
+    border-color: rgba(46, 125, 50, 0.2);
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.toast--error {
+    border-color: rgba(198, 40, 40, 0.2);
+    background: var(--error-bg);
+    color: var(--error);
+}
+
+@keyframes spinner-rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes toast-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

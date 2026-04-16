@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBAI - Access Control</title>
+    <link rel="stylesheet" href="/common-static/base.css">
+    <link rel="stylesheet" href="/common-static/components.css">
+    <link rel="stylesheet" href="/common-static/style.css">
+    <link rel="stylesheet" href="/ac-static/style.css">
+</head>
+<body class="crossroad-body">
+
+<header class="crossroad-header">
+    <div class="crossroad-brand">
+        <button type="button" class="back-link btn btn--ghost btn--sm" onclick="postNavigate('/crossroad')">PBAI</button>
+    </div>
+    <div class="crossroad-user">
+        <span id="welcome-text"></span>
+        <button class="btn btn--ghost btn--sm" onclick="doLogout()">Sign Out</button>
+    </div>
+</header>
+
+<main class="crossroad-main">
+    <h2 class="crossroad-title">Access Control</h2>
+
+    <section class="ac-section">
+        <div class="ac-toolbar">
+            <h3 class="ac-subtitle">Current Groups</h3>
+            <button id="btn-reload" class="btn btn--primary btn--sm">Reload</button>
+        </div>
+        <div class="ac-toolbar" style="margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <input type="text" id="new-group-cn" class="input ac-input-inline" placeholder="Group CN">
+            <input type="text" id="new-group-helpers" class="input ac-input-inline" placeholder="Helpers (comma-separated)">
+            <input type="text" id="new-group-access-to" class="input ac-input-inline" placeholder="Access To (comma-separated)">
+            <label class="ac-checkbox-label" style="white-space: nowrap;">
+                <input type="checkbox" id="new-group-admin"> Admin
+            </label>
+            <label class="ac-checkbox-label" style="white-space: nowrap;">
+                <input type="checkbox" id="new-group-auditor"> Auditor
+            </label>
+            <button id="btn-add-group" class="btn btn--primary btn--sm">Add Group</button>
+        </div>
+        <div id="groups-list" class="ac-list" aria-busy="true">
+            <div class="loading-state">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading...</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="ac-section">
+        <h3 class="ac-subtitle">Master Users</h3>
+        <div class="ac-toolbar">
+            <input type="text" id="master-user-input" class="input ac-input-inline" placeholder="Enter username">
+            <button id="btn-add-master" class="btn btn--primary btn--sm">Add</button>
+        </div>
+        <div id="master-users-list" class="ac-list" aria-busy="true">
+            <div class="loading-state">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading...</span>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="/common-static/app.js"></script>
+<script src="/ac-static/app.js"></script>
+</body>
+</html>

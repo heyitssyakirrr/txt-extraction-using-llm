@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBAI - Select a Helper</title>
+    <link rel="stylesheet" href="/common-static/base.css">
+    <link rel="stylesheet" href="/common-static/components.css">
+    <link rel="stylesheet" href="/common-static/style.css">
+</head>
+<body class="crossroad-body">
+
+<header class="crossroad-header">
+    <div class="crossroad-brand">PBAI</div>
+    <div class="crossroad-user">
+        <span id="welcome-text"></span>
+        <button class="btn btn--ghost btn--sm" onclick="doLogout()">Sign Out</button>
+    </div>
+</header>
+
+<main class="crossroad-main">
+    <h2 class="crossroad-title">Select a Helper</h2>
+    <div id="helper-grid" class="helper-grid" aria-busy="true">
+        <div class="helper-loading">
+            <div class="loading-state">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="master-section" class="master-section" style="display:none;">
+        <h2 class="crossroad-title master-title">Master only</h2>
+        <div class="helper-grid">
+            <button class="helper-card" type="button" onclick="postNavigate('/access-control')">
+                <div class="helper-card-name">Access Control</div>
+                <div class="helper-card-desc">Control panel for PBAI access</div>
+            </button>
+        </div>
+    </div>
+</main>
+
+<script src="/common-static/app.js"></script>
+</body>
+</html>

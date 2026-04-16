@@ -1,0 +1,97 @@
+.back-link {
+    color: white;
+    text-decoration: none;
+    font-size: 17px;
+    font-weight: 600;
+}
+.back-link:hover { opacity: 0.85; }
+
+.ac-section { margin-bottom: 32px; }
+
+#pending-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.ac-subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+}
+
+.ac-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin-bottom: 12px;
+}
+
+.ac-list .loading-state {
+    padding: var(--sp-2) 0;
+}
+
+.ac-table {
+    font-size: 13px;
+}
+
+.ac-table th {
+    background: var(--bg);
+}
+
+.ac-pending-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+}
+
+.ac-pending-item .btn {
+    align-self: flex-end;
+}
+
+.ac-pending-name {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.ac-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.ac-label .input {
+    margin-top: var(--sp-1);
+}
+
+.ac-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.ac-input-inline {
+    flex: 1;
+    max-width: 280px;
+}
+
+.ac-td-action { text-align: right; }
+
+.ac-empty,
+.ac-error {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 8px 0;
+}
+
+.ac-error {
+    color: var(--error);
+}
