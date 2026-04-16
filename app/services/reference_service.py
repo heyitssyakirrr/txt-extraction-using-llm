@@ -28,10 +28,6 @@ REFERENCE_CSV_PATH = Path("data/reference.csv")
 
 # ---------------------------------------------------------------------------
 # Canonical bank name map
-# Keys   : normalised variants the LLM might produce  (lower, no spaces/punct)
-# Values : exact canonical name as it appears in the reference CSV
-#
-# Add rows here whenever a new mismatch pattern is discovered.
 # ---------------------------------------------------------------------------
 _BANK_CANONICAL: dict[str, str] = {
     # BSN variants
@@ -105,11 +101,14 @@ _BANK_CANONICAL: dict[str, str] = {
     "kfh":                          "Kuwait Finance House",
 
     # Standard Chartered
-    "standardcharteredbank":        "Standard Chartered Bank",
-    "standardchartered":            "Standard Chartered Bank",
-    "standardchartereredsaadiq":    "Standard Chartered Saadiq",
-    "standardchartteredsaadiq":     "Standard Chartered Saadiq",
-    "standardchartteredsaadiqberhad": "Standard Chartered Saadiq",
+    "standardcharteredbank":                "Standard Chartered Bank",
+    "standardchartered":                    "Standard Chartered Bank",
+    "standardchartereredsaadiq":            "Standard Chartered Saadiq",
+    "standardchartteredsaadiq":             "Standard Chartered Saadiq",
+    "standardchartteredsaadiqberhad":       "Standard Chartered Saadiq",
+    "standardchartteredsaadiqislamicberhad":"Standard Chartered Saadiq",
+    "standardchartteredsaadiqislamic":      "Standard Chartered Saadiq",
+    "standardchartteredsaadiqmalaysiaberhad":"Standard Chartered Saadiq",
 
     # Bank Islam / Muamalat
     "bankislam":                    "Bank Islam",
@@ -146,16 +145,9 @@ _BANK_CANONICAL: dict[str, str] = {
 def _canonical_bank(raw: str | None) -> str | None:
     """
     Normalise a raw bank name string to its canonical form.
-
-    Steps:
-      1. Strip punctuation, spaces, "berhad", "(m)", common suffixes
-      2. Look up in the canonical map
-      3. If not found, return the original (trimmed) string so the
-         comparison still runs — just won't match if truly different
     """
     if not raw:
         return raw
-    # Remove punctuation except letters and digits, lowercase
     key = re.sub(r'[^a-z0-9]', '', raw.lower())
     return _BANK_CANONICAL.get(key, raw.strip())
 
@@ -223,18 +215,87 @@ def get_reference_data() -> dict[str, dict]:
 
 
 # ---------------------------------------------------------------------------
-# Comparison helpers
+# Normalisation helpers
 # ---------------------------------------------------------------------------
 
-def _normalise_value(v: str | None) -> str:
-    """Strip, lower-case, and remove common separators for loose matching."""
+def _norm_fi(v: str | None) -> str:
+    """
+    Normalise a FI code for comparison.
+
+    The reference CSV and LLM output may differ in separator style only:
+      "0227_13014"  vs  "0227-13014"  vs  "022713014"
+
+    Strategy:
+      1. Strip all whitespace, underscores, and hyphens → pure digit/alpha string
+      2. Compare the stripped forms
+
+    Leading zeros ARE significant — do not strip them.
+    """
     if v is None:
         return ""
-    return re.sub(r'[\s\-_/]', '', v).lower()
+    # Remove spaces, underscores, hyphens only — keep all other chars (digits, letters)
+    return re.sub(r'[\s_\-]', '', v).lower()
+
+
+def _norm_account(v: str | None) -> str:
+    """
+    Normalise an account number for comparison.
+
+    Account numbers in this system can contain:
+      - Pure digits with leading zeros:    "0000008013080047172"
+      - Alphanumeric with slashes/dashes:  "KIP/MG/2007/00000332212001"
+      - HSBC-style with suffix:            "316222116O/D88"
+      - BSN-style with dashes:             "07215-72-952646-82"
+      - OCBC-style:                        "740-407580-8-00000"
+
+    Strategy: strip only whitespace — keep all other chars (digits, letters,
+    slashes, dashes) but lowercase everything so casing doesn't matter.
+
+    This preserves the structural characters that distinguish account numbers
+    while allowing the LLM output and reference to differ only in case.
+    """
+    if v is None:
+        return ""
+    return re.sub(r'\s', '', v).lower()
+
+
+def _norm_account_loose(v: str | None) -> str:
+    """
+    Extra-loose normalisation: strip ALL non-alphanumeric characters.
+    Used as a fallback when strict normalisation fails, to catch cases where
+    the LLM drops separators (e.g. "316222116OD88" vs "316222116O/D88").
+    """
+    if v is None:
+        return ""
+    return re.sub(r'[^a-z0-9]', '', v.lower())
 
 
 def _field_match(extracted: str | None, expected: str | None) -> FieldComparisonDetail:
-    match = _normalise_value(extracted) == _normalise_value(expected)
+    """
+    Match with strict normalisation first, then loose fallback.
+    Reports the match result but always stores the original extracted value.
+    """
+    strict_match = _norm_account(extracted) == _norm_account(expected)
+    loose_match  = _norm_account_loose(extracted) == _norm_account_loose(expected)
+    match = strict_match or loose_match
+
+    if not strict_match and loose_match:
+        logger.debug(
+            "Loose account match: extracted=%r expected=%r", extracted, expected
+        )
+
+    return FieldComparisonDetail(
+        extracted=extracted,
+        expected=expected,
+        match=match,
+    )
+
+
+def _fi_field_match(extracted: str | None, expected: str | None) -> FieldComparisonDetail:
+    """
+    Match FI codes with separator-agnostic normalisation.
+    """
+    match = _norm_fi(extracted) == _norm_fi(expected)
     return FieldComparisonDetail(
         extracted=extracted,
         expected=expected,
@@ -245,11 +306,9 @@ def _field_match(extracted: str | None, expected: str | None) -> FieldComparison
 def _bank_field_match(extracted: str | None, expected: str | None) -> FieldComparisonDetail:
     """
     Like _field_match but first canonicalises the extracted bank name.
-    The canonicalised form is what we store as `extracted` so the UI
-    shows the clean name, not the raw LLM output.
     """
     canonical_extracted = _canonical_bank(extracted)
-    match = _normalise_value(canonical_extracted) == _normalise_value(expected)
+    match = _norm_account_loose(canonical_extracted) == _norm_account_loose(expected)
     return FieldComparisonDetail(
         extracted=canonical_extracted,
         expected=expected,
@@ -280,10 +339,10 @@ def compare_extraction(
             all_match=False,
         )
 
-    bank_cmp   = _bank_field_match(bank_name,             row.get("bank"))
-    fi_cmp     = _field_match(fi_num,                     row.get("fi_code"))
-    master_cmp = _field_match(master_account_number,      row.get("masteracc"))
-    sub_cmp    = _field_match(sub_account_number,         row.get("subacc"))
+    bank_cmp   = _bank_field_match(bank_name,            row.get("bank"))
+    fi_cmp     = _fi_field_match(fi_num,                 row.get("fi_code"))
+    master_cmp = _field_match(master_account_number,     row.get("masteracc"))
+    sub_cmp    = _field_match(sub_account_number,        row.get("subacc"))
 
     all_match = all([
         bank_cmp.match,
