@@ -24,12 +24,140 @@ from app.models.schemas import ComparisonResult, FieldComparisonDetail
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Path to the reference CSV.
-# Place the file at  data/reference.csv  relative to the project root,
-# or override by changing this constant.
-# ---------------------------------------------------------------------------
 REFERENCE_CSV_PATH = Path("data/reference.csv")
+
+# ---------------------------------------------------------------------------
+# Canonical bank name map
+# Keys   : normalised variants the LLM might produce  (lower, no spaces/punct)
+# Values : exact canonical name as it appears in the reference CSV
+#
+# Add rows here whenever a new mismatch pattern is discovered.
+# ---------------------------------------------------------------------------
+_BANK_CANONICAL: dict[str, str] = {
+    # BSN variants
+    "bsn":                          "BSN",
+    "banksimpanannasional":         "BSN",
+    "banksimpanannasionalberhad":   "BSN",
+
+    # Maybank
+    "maybank":                      "Maybank",
+    "maybankberhad":                "Maybank",
+    "malayanbankingberhad":         "Maybank",
+    "maybankislamic":               "Maybank Islamic",
+    "maybankislamicberhad":         "Maybank Islamic",
+
+    # CIMB
+    "cimbbank":                     "CIMB Bank",
+    "cimbbankberhad":               "CIMB Bank",
+    "cimbislamic":                  "CIMB Islamic",
+    "cimbislamicberhad":            "CIMB Islamic",
+
+    # Alliance
+    "alliancebank":                 "Alliance Bank",
+    "alliancebankberhad":           "Alliance Bank",
+    "allianceislamicbank":          "Alliance Islamic Bank",
+    "allianceislamicbankberhad":    "Alliance Islamic Bank",
+    "alliancefinanceberhad":        "Alliance Bank",
+
+    # Hong Leong
+    "hongleongbank":                "Hong Leong Bank",
+    "hongleongbankberhad":          "Hong Leong Bank",
+    "hongleongislamicbank":         "Hong Leong Islamic Bank",
+    "hongleongislamicbankberhad":   "Hong Leong Islamic Bank",
+
+    # RHB
+    "rhbbank":                      "RHB Bank",
+    "rhbbankberhad":                "RHB Bank",
+    "rhbislamicbank":               "RHB Islamic Bank",
+    "rhbislamicbankberhad":         "RHB Islamic Bank",
+
+    # AmBank
+    "ambank":                       "AmBank",
+    "ambankberhad":                 "AmBank",
+    "ambankislamic":                "AmBank Islamic",
+    "ambankislamicberhad":          "AmBank Islamic",
+    "ammbankberhad":                "AmBank",
+
+    # HSBC
+    "hsbcbank":                     "HSBC Bank",
+    "hsbcbankberhad":               "HSBC Bank",
+    "hsbcbankmalaysiaberhad":       "HSBC Bank",
+    "hsbcamanah":                   "HSBC Amanah",
+    "hsbcamanahmalaysiaberhad":     "HSBC Amanah",
+
+    # OCBC
+    "ocbc":                         "OCBC Bank",
+    "ocbcbank":                     "OCBC Bank",
+    "ocbcbankberhad":               "OCBC Bank",
+    "ocbcbankmalaysiaberhad":       "OCBC Bank",
+    "ocbcalamin":                   "OCBC Al-Amin",
+    "ocbcalaminbankberhad":         "OCBC Al-Amin",
+
+    # Public Bank (sender — should not normally appear but kept for completeness)
+    "publicbankberhad":             "Public Bank Berhad",
+    "publicbank":                   "Public Bank Berhad",
+    "publicislamicbank":            "Public Islamic Bank",
+    "publicislamicbankberhad":      "Public Islamic Bank",
+
+    # Kuwait Finance House
+    "kuwaitfinancehouse":           "Kuwait Finance House",
+    "kuwaitfinancehouseberhad":     "Kuwait Finance House",
+    "kfh":                          "Kuwait Finance House",
+
+    # Standard Chartered
+    "standardcharteredbank":        "Standard Chartered Bank",
+    "standardchartered":            "Standard Chartered Bank",
+    "standardchartereredsaadiq":    "Standard Chartered Saadiq",
+    "standardchartteredsaadiq":     "Standard Chartered Saadiq",
+    "standardchartteredsaadiqberhad": "Standard Chartered Saadiq",
+
+    # Bank Islam / Muamalat
+    "bankislam":                    "Bank Islam",
+    "bankislammalaysiaberhad":      "Bank Islam",
+    "bankmuamalat":                 "Bank Muamalat",
+    "bankmuamalatmalaysiaberhad":   "Bank Muamalat",
+
+    # Affin
+    "affinbank":                    "Affin Bank",
+    "affinbankberhad":              "Affin Bank",
+    "affinislamicbank":             "Affin Islamic Bank",
+    "affinislamicbankberhad":       "Affin Islamic Bank",
+
+    # Agro / Rakyat
+    "agrobank":                     "Agro Bank",
+    "bankpertanianberhad":          "Agro Bank",
+    "bankrakyat":                   "Bank Rakyat",
+    "bankrakyatberhad":             "Bank Rakyat",
+    "bankkeperjaanrakyat":          "Bank Rakyat",
+
+    # UOB
+    "uob":                          "UOB Bank",
+    "uobbank":                      "UOB Bank",
+    "unitedoberseabank":            "UOB Bank",
+    "unitedoberseabankberhad":      "UOB Bank",
+
+    # Citibank
+    "citibank":                     "Citibank",
+    "citibankberhad":               "Citibank",
+    "citibankmalaysiaberhad":       "Citibank",
+}
+
+
+def _canonical_bank(raw: str | None) -> str | None:
+    """
+    Normalise a raw bank name string to its canonical form.
+
+    Steps:
+      1. Strip punctuation, spaces, "berhad", "(m)", common suffixes
+      2. Look up in the canonical map
+      3. If not found, return the original (trimmed) string so the
+         comparison still runs — just won't match if truly different
+    """
+    if not raw:
+        return raw
+    # Remove punctuation except letters and digits, lowercase
+    key = re.sub(r'[^a-z0-9]', '', raw.lower())
+    return _BANK_CANONICAL.get(key, raw.strip())
 
 
 # ---------------------------------------------------------------------------
@@ -37,29 +165,16 @@ REFERENCE_CSV_PATH = Path("data/reference.csv")
 # ---------------------------------------------------------------------------
 
 def _normalise_key(raw: str) -> str:
-    """
-    Strip file extensions and known suffixes so that
-    'JSB-000486-25_extracted.txt' → 'JSB-000486-25'
-    'BBB-001227-24.txt'           → 'BBB-001227-24'
-    'BBB-001227-24'               → 'BBB-001227-24'
-    """
-    # Drop any file extension first (.txt, .pdf, .md …)
-    name = Path(raw).stem  # removes last suffix, e.g. .txt
-    # Drop trailing _extracted (case-insensitive) and any other _<word> suffixes
+    name = Path(raw).stem
     name = re.sub(r'_extracted$', '', name, flags=re.IGNORECASE).strip()
     return name
 
 
 def _normalise_header(h: str) -> str:
-    """Lower-case, strip spaces — makes column matching robust."""
     return h.strip().lower().replace(" ", "")
 
 
 def _load_csv(path: Path) -> dict[str, dict]:
-    """
-    Returns a dict keyed by normalised filename string.
-    Each value is a flat dict with keys: filename, bank, fi_code, masteracc, subacc
-    """
     if not path.exists():
         logger.warning("Reference CSV not found at %s — comparisons will be skipped", path)
         return {}
@@ -71,10 +186,8 @@ def _load_csv(path: Path) -> dict[str, dict]:
             logger.warning("Reference CSV appears empty")
             return {}
 
-        # Build a normalised-header → original-header map
         header_map = {_normalise_header(h): h for h in reader.fieldnames}
 
-        # Resolve the columns we care about (tolerant of spacing/casing)
         col = {
             "filename":  header_map.get("filename"),
             "bank":      header_map.get("bank"),
@@ -106,7 +219,6 @@ def _load_csv(path: Path) -> dict[str, dict]:
 
 @lru_cache(maxsize=1)
 def get_reference_data() -> dict[str, dict]:
-    """Cached loader — reads the CSV once per process lifetime."""
     return _load_csv(REFERENCE_CSV_PATH)
 
 
@@ -122,13 +234,24 @@ def _normalise_value(v: str | None) -> str:
 
 
 def _field_match(extracted: str | None, expected: str | None) -> FieldComparisonDetail:
-    """
-    Compare two values with normalisation (ignore case, spaces, dashes).
-    Both being None counts as a match (field not present in either source).
-    """
     match = _normalise_value(extracted) == _normalise_value(expected)
     return FieldComparisonDetail(
         extracted=extracted,
+        expected=expected,
+        match=match,
+    )
+
+
+def _bank_field_match(extracted: str | None, expected: str | None) -> FieldComparisonDetail:
+    """
+    Like _field_match but first canonicalises the extracted bank name.
+    The canonicalised form is what we store as `extracted` so the UI
+    shows the clean name, not the raw LLM output.
+    """
+    canonical_extracted = _canonical_bank(extracted)
+    match = _normalise_value(canonical_extracted) == _normalise_value(expected)
+    return FieldComparisonDetail(
+        extracted=canonical_extracted,
         expected=expected,
         match=match,
     )
@@ -141,20 +264,6 @@ def compare_extraction(
     master_account_number: str | None,
     sub_account_number: str | None,
 ) -> ComparisonResult:
-    """
-    Look up the uploaded file's filename in the reference CSV and compare
-    the four verifiable fields.
-
-    Args:
-        filename_raw: The original uploaded filename, e.g. "JSB-000486-25_extracted.txt"
-        bank_name:    Bank name extracted by the LLM from the document body.
-        fi_num:       FI number extracted by the LLM.
-        master_account_number: Master acc extracted by the LLM.
-        sub_account_number:    Sub acc extracted by the LLM.
-
-    Returns:
-        ComparisonResult with per-field verdicts and an overall all_match flag.
-    """
     key = _normalise_key(filename_raw)
     reference = get_reference_data()
     row = reference.get(key)
@@ -164,17 +273,17 @@ def compare_extraction(
         return ComparisonResult(
             filename_key=key,
             csv_row_found=False,
-            bank_name=FieldComparisonDetail(extracted=bank_name, expected=None, match=False),
+            bank_name=FieldComparisonDetail(extracted=_canonical_bank(bank_name), expected=None, match=False),
             fi_num=FieldComparisonDetail(extracted=fi_num, expected=None, match=False),
             master_account_number=FieldComparisonDetail(extracted=master_account_number, expected=None, match=False),
             sub_account_number=FieldComparisonDetail(extracted=sub_account_number, expected=None, match=False),
             all_match=False,
         )
 
-    bank_cmp    = _field_match(bank_name,             row.get("bank"))
-    fi_cmp      = _field_match(fi_num,                row.get("fi_code"))
-    master_cmp  = _field_match(master_account_number, row.get("masteracc"))
-    sub_cmp     = _field_match(sub_account_number,    row.get("subacc"))
+    bank_cmp   = _bank_field_match(bank_name,             row.get("bank"))
+    fi_cmp     = _field_match(fi_num,                     row.get("fi_code"))
+    master_cmp = _field_match(master_account_number,      row.get("masteracc"))
+    sub_cmp    = _field_match(sub_account_number,         row.get("subacc"))
 
     all_match = all([
         bank_cmp.match,
