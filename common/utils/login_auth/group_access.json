@@ -1,0 +1,38 @@
+{
+    "AskPBAI_Admin_ITD": {
+        "helpers": ["policy_helper"],
+        "access_to": ["itd"],
+        "is_admin": true,
+        "is_auditor": false
+    },
+    "AskPBAI_Auditor_ITD": {
+        "helpers": ["policy_helper"],
+        "access_to": ["itd"],
+        "is_admin": false,
+        "is_auditor": true
+    },
+    "AskPBAI_User_ITD": {
+        "helpers": ["policy_helper"],
+        "access_to": ["itd"],
+        "is_admin": false,
+        "is_auditor": false
+    },
+    "AskPBAI_Admin_BCM": {
+        "helpers": ["policy_helper"],
+        "access_to": ["bcm"],
+        "is_admin": true,
+        "is_auditor": false
+    },
+    "AskPBAI_Auditor_BCM": {
+        "helpers": ["policy_helper"],
+        "access_to": ["bcm"],
+        "is_admin": false,
+        "is_auditor": true
+    },
+    "AskPBAI_User_BCM": {
+        "helpers": ["policy_helper"],
+        "access_to": ["bcm"],
+        "is_admin": false,
+        "is_auditor": false
+    }
+}

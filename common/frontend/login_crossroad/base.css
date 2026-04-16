@@ -1,0 +1,100 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #e0e0e0;
+    --primary: #c00000;
+    --primary-hover: #a00000;
+    --text: #1a1a1a;
+    --text-muted: #6b7280;
+    --hover: #f0f0f0;
+
+    --error: #c62828;
+    --error-bg: #ffebee;
+    --success: #2e7d32;
+    --success-bg: #e8f5e9;
+    --danger: #c00000;
+    --danger-bg: #ffebee;
+    --avatar-ai: #dde3ec;
+
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-7: 28px;
+    --sp-8: 32px;
+    --sp-9: 36px;
+    --sp-10: 40px;
+
+    --radius-sm: 4px;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    --fs-xs: 11px;
+    --fs-sm: 12px;
+    --fs-base: 14px;
+    --fs-md: 15px;
+    --fs-lg: 17px;
+    --fs-xl: 18px;
+
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
+
+    --z-dropdown: 200;
+    --z-overlay: 300;
+    --z-toast: 400;
+
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+    --focus-ring: rgba(192, 0, 0, 0.18);
+}
+
+html, body {
+    min-height: 100vh;
+}
+
+body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+button, input, textarea, select, a {
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        opacity var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+button, input, textarea, select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+a {
+    color: inherit;
+}
+
+:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
