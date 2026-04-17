@@ -22,7 +22,10 @@
         <!-- TAB BAR -->
         <div class="tab-bar">
             <button class="tab-btn active" id="tabExtract" onclick="switchTab('extract')">
-                Customer Details
+                Customer Details V1
+            </button>
+            <button class="tab-btn" id="tabBatch" onclick="switchTab('batch')">
+                Customer Details V2 
             </button>
             <!-- Statement Summary tab hidden until feature is ready
             <button class="tab-btn" id="tabSummarise" onclick="switchTab('summarise')">
@@ -31,7 +34,7 @@
             -->
         </div>
 
-        <!-- TAB: CUSTOMER DETAILS -->
+        <!-- TAB: CUSTOMER DETAILS V1 -->
         <div class="tab-panel" id="panelExtract">
             <div class="page-container" id="pageContainerExtract">
 
@@ -138,6 +141,75 @@
                         <div class="results-card" id="comparisonPanel"></div>
 
                     </div>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- TAB: CUSTOMER DETAILS V2 -->
+        <div class="tab-panel" id="panelBatch" style="display:none;">
+            <div class="page-container" id="pageContainerBatch">
+
+                <section class="upload-panel" style="max-width:780px;">
+                    <div class="panel-header">
+                        <div class="hero-badge">Batch Extraction</div>
+                        <h1 class="page-title">Batch Customer Data Extraction</h1>
+                        <p class="page-subtitle">Upload multiple .txt or .pdf documents. Files are sent to the LLM one at a time in queue order. Results appear as each file completes.</p>
+                    </div>
+                    <div class="upload-card">
+                        <div class="section-label">Upload Documents</div>
+                        <div id="dropZoneBatch" class="drop-zone">
+                            <input id="fileInputBatch" type="file" accept=".txt,.pdf,.md" multiple>
+                            <div class="drop-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14,2 14,8 20,8"></polyline>
+                                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                                    <polyline points="9,15 12,12 15,15"></polyline>
+                                </svg>
+                            </div>
+                            <div class="drop-title">Drop your files here</div>
+                            <div class="drop-hint">Supports .txt, .pdf, and .md — max {{ max_upload_mb }} MB each</div>
+                        </div>
+
+                        <!-- File queue list -->
+                        <div id="batchFileList" style="display:none; flex-direction:column; gap:8px;"></div>
+
+                        <div id="errorBannerBatch" class="banner banner-error">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span id="errorMessageBatch"></span>
+                        </div>
+
+                        <div id="batchProgressBar" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span class="section-label">Progress</span>
+                                <span id="batchProgressText" style="font-size:12px; color:var(--pb-muted);"></span>
+                            </div>
+                            <div style="background:var(--pb-border); border-radius:999px; height:6px; overflow:hidden;">
+                                <div id="batchProgressFill" style="height:100%; width:0%; background:var(--pb-red); border-radius:999px; transition:width 0.3s ease;"></div>
+                            </div>
+                        </div>
+
+                        <button id="submitBtnBatch" class="submit-btn" type="button" disabled>
+                            <span id="submitSpinnerBatch" class="spinner"></span>
+                            <span id="submitLabelBatch">Start Batch Extraction</span>
+                        </button>
+                        <button id="resetBtnBatch" class="reset-btn" type="button" style="display:none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+                            </svg>
+                            Clear &amp; start over
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Batch results column -->
+                <section id="batchResultsPanel" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:16px; max-height:calc(100vh - 180px); overflow-y:auto; padding-right:4px;">
                 </section>
 
             </div>
