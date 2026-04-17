@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-# ---------------------------------------------------------------------------
-# Canonical bank name list — exactly as they appear in the reference CSV.
-# The LLM is instructed to pick from this list when possible.
-# ---------------------------------------------------------------------------
 _KNOWN_BANKS = """\
 - BSN (Bank Simpanan Nasional)
 - CIMB Bank
@@ -26,7 +22,7 @@ _KNOWN_BANKS = """\
 - Public Islamic Bank
 - Kuwait Finance House
 - Standard Chartered Bank
-- Standard Chartered Saadiq
+- Standard Chartered Saadiq Islamic
 - Bank Islam
 - Bank Muamalat
 - Affin Bank
@@ -34,7 +30,9 @@ _KNOWN_BANKS = """\
 - Agro Bank
 - Bank Rakyat
 - UOB Bank
-- Citibank"""
+- Citibank
+- MBSB Bank
+- Bank of China"""
 
 
 def build_extraction_prompt(text: str) -> str:
@@ -45,79 +43,168 @@ Your task is to extract exactly six fields from a bank document.
 
 === RULES ===
 0. You are in JSON-only mode. Your entire response must be a single JSON object. Stop immediately after the closing brace. No introduction, no explanation, no conclusion.
-1. The document may or may not have labels. Do NOT rely only on labels.
+1. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
 2. Use the full context of the document to determine the correct values.
-3. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
-4. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
+3. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
 
-=== HOW TO IDENTIFY EACH FIELD ===
-
-NAME:
-- Full name of the account holder, NOT a staff name, branch name, or bank name.
-- Malaysian names are typically in FULL CAPITAL LETTERS.
+================================================================================
+FIELD 1 — NAME
+================================================================================
+- The full name of the customer / account holder.
+- Malaysian names are typically printed in FULL CAPITAL LETTERS.
 - Common formats:
-    - Malay  : AHMAD BIN HASSAN, SITI BINTI ALI
-    - Chinese: LEE CHONG WEI, TAN AH KOW
-    - Indian : RAMESH A/L RAJENDRAN, KAVITHA A/P SUBRAMANIAM
-- Ignore names that are clearly a bank branch, company, or staff member.
+    Malay  : AHMAD BIN HASSAN, SITI BINTI ALI
+    Chinese: LEE CHONG WEI, TAN AH KOW
+    Indian : RAMESH A/L RAJENDRAN, KAVITHA A/P SUBRAMANIAM
+- Ignore names that are clearly a bank branch, law firm, company, or staff member.
 
-MASTER ACCOUNT NUMBER — READ THIS CAREFULLY:
-- The primary account number for the third-party bank (NOT Public Bank / Public Islamic Bank).
-- Copy it EXACTLY as printed in the document — preserve ALL characters including:
-    - Letters (e.g. "KIP/MG/2007/00000332212001", "316222116O/D88")
-    - Slashes, dashes, dots, and spaces
-    - Leading zeros (e.g. "0000008013080047172")
-    - Suffixes like "O/D88", "O/D66", "O/D90", "SL7001", "DS1001"
-- Do NOT strip, reformat, pad, or truncate the number.
-- Do NOT confuse with phone numbers, IC numbers, reference numbers, or staff IDs.
-- Usually labelled as "Account No.", "A/C No.", "Master A/C", or similar.
-- If the document shows a table with account details, the master account is typically the longer/primary value.
+================================================================================
+FIELDS 2, 3, 4 — FI CODE, MASTER ACCOUNT, SUB ACCOUNT
+================================================================================
+These three values always appear together in a dedicated section near the bottom
+of the document, under a heading such as:
+    "FI CODE (ONLY APPLICABLE FOR REFINANCING)"
+    "FACILITY ACCOUNT NO.", "ACCOUNT DETAILS", or similar.
 
-SUB ACCOUNT NUMBER — READ THIS CAREFULLY:
-- A secondary account number linked to the master account, specific to the third-party bank.
-- Copy it EXACTLY as printed — preserve ALL characters including letters, slashes, dashes, suffixes.
-- Common formats: purely numeric ("33181057539"), alphanumeric ("022MH3MYR", "101SLUMYR"), or a reformatted version of the master account.
-- May be labelled as "Sub A/C", "Sub Account", "Loan A/C", or appear in a second row of an account table.
-- Return null if genuinely not present — do NOT invent or duplicate the master account number.
+The section ALWAYS lists the three values in this fixed logical order:
+    1st value = FI Code              → fi_num
+    2nd value = Master Account No.   → master_account_number
+    3rd value = Sub Account No.      → sub_account_number
 
-ADDRESS:
+They can also be unstructured but they always appear together.
+
+This section appears in ONE OF TWO layouts. Detect which one is present:
+
+--- LAYOUT A: pipe/markdown table ---
+All three values appear as cells in a single table row.
+Example:
+    | 022204026 | 205340722O/D88 | 342385069101SLUMYR |
+      ^fi_num     ^master_acc      ^sub_acc
+
+--- LAYOUT B: labeled key-value lines ---
+Each value has its own line with an explicit label.
+Example:
+    FI CODE :            034907013
+    MASTER ACCOUNT NO :  88820006220322
+    SUB ACCOUNT NO :     00088820006220322
+
+In BOTH layouts the logical order is identical:
+    fi_num → master_account_number → sub_account_number
+
+--- FI CODE (fi_num) ---
+- A short institution/routing code — typically 7 to 9 digits.
+- ALWAYS the shortest of the three values.
+- May start with 0 (most banks) or 3 (BSN, Bank Rakyat).
+- May contain underscores or hyphens (Maybank only): "0227_13014", "0227-11038".
+- NOT a phone number, postcode, reference number, or RENTAS clearing account.
+- If unsure between two candidates, choose the shorter purely-numeric one.
+
+--- MASTER ACCOUNT NUMBER ---
+- The primary loan/account identifier for the third-party bank.
+- Usually longer than the FI code; may contain letters, slashes, or suffixes.
+- Copy EXACTLY as printed — preserve all characters: leading zeros, letters, slashes, dashes, and suffixes.
+- NEVER use the RENTAS/IBG payment account as the master account.
+  The RENTAS account is labelled under a "RENTAS" or "IBG" payment instruction
+  block (e.g. "Account No. 309-909570-005") and belongs to the bank's internal
+  clearing system. It will NOT appear inside the FI Code section.
+
+--- SUB ACCOUNT NUMBER ---
+- A secondary account number in the same section, listed after the master account.
+- Often differs from the master by a prefix, suffix, or leading zeros.
+  Example: master = "205340722O/D88", sub = "342385069101SLUMYR" (different format).
+- Some master and sub account number can also be the same number on some banks.
+- Copy EXACTLY as printed.
+- Return null ONLY if the section genuinely contains no third value.
+- Do NOT duplicate the master account number as the sub account.
+
+================================================================================
+FIELD 5 — ADDRESS
+================================================================================
 - The customer's mailing or residential address.
 - May span multiple lines — combine into one string separated by commas.
-- Ignore bank branch addresses or addresses belonging to law firms / third parties.
+- Ignore bank branch addresses and law firm / third-party addresses (cc: blocks).
+- Return null if no customer address is present.
 
-FI NUM — READ THIS CAREFULLY:
-- The Financial Institution number identifying the third-party bank and branch.
-- COPY IT EXACTLY as it appears in the document — do NOT reformat, strip characters, or add/remove digits.
-- Common formats:
-    - Purely numeric, 9 digits: "023514094", "034012298"
-    - May start with 0: most banks (e.g. "021812590", "022914017")
-    - May start with 3: BSN ("331014022"), Bank Rakyat ("331155046")
-    - May contain underscores or hyphens: Maybank uses "0227_13014", "0227-11038"
-    - May be 7 digits for some banks
-- May be labelled as "FI Code", "FI No.", "FI Number", "Institution Code", or similar.
-- It is NOT a phone number, postcode, or account number.
-- If you see a code near a bank routing/payment instruction table, that is likely the FI code.
+================================================================================
+FIELD 6 — BANK NAME
+================================================================================
+These documents are letters SENT BY Public Bank Berhad or Public Islamic Bank
+TO a customer, about a third-party bank account being redeemed or refinanced.
 
-BANK NAME — READ THIS CAREFULLY:
-- This document is a letter SENT BY Public Bank Berhad / Public Islamic Bank TO a customer about a third-party bank account.
-- "Public Bank Berhad" and "Public Islamic Bank" are the SENDER — do NOT return them as the bank name unless there is absolutely no other bank present.
-- You are looking for the name of the THIRD-PARTY bank whose account details (FI Num, Master Account, Sub Account) appear in the summary table. The bank name is usually printed near that table, in a letterhead block, or in the payment instruction section of the document.
-- Common locations: letterhead/header of the third-party bank's section, "Beneficiary" label, "remit to" instructions, or a named address block belonging to that bank.
-- Match the bank name to the closest entry in the known bank list below.
-- Use the EXACT canonical form shown — strip suffixes such as "Berhad", "Malaysia Berhad", "(M) Berhad", or extra punctuation that do not appear in the known list (e.g. "HSBC Bank Malaysia Berhad" -> "HSBC Bank").
-- If the document mentions "Bank Simpanan Nasional" or "BSN", return "BSN".
-- If the document mentions an Islamic variant (e.g. "Maybank Islamic", "HSBC Amanah"), return the Islamic variant exactly as it appears in the list.
+- "Public Bank Berhad" and "Public Islamic Bank" are the SENDER — do NOT return
+  them as the bank name unless they are genuinely the only bank in the document.
+- The THIRD-PARTY bank is the one whose FI Code / Master Account / Sub Account
+  appear in the dedicated section above. Its name appears in one of:
+    * Signature block  : "for <Bank Name> Berhad", "Yours faithfully, <Bank Name>"
+    * RENTAS/IBG block : "PAYABLE TO: <Bank Name>" or "Beneficiary: <Bank Name>"
+    * Letterhead / address block near the FI Code section
+- Match to the closest entry in the known bank list below.
+- Strip suffixes absent from the list: "Berhad", "Malaysia Berhad", "(M) Berhad",
+  company numbers like "(295576-U)", etc.
+    e.g. "HSBC Bank Malaysia Berhad"  →  "HSBC Bank"
+    e.g. "AmBank Islamic Berhad"      →  "AmBank Islamic"
+- For Islamic variants (e.g. "Maybank Islamic", "HSBC Amanah"), return the
+  Islamic canonical form exactly as it appears in the list.
 - Return null ONLY if no third-party bank can be identified at all.
 
-Known bank names (return the EXACT canonical form from this list):
+Known bank names — return the EXACT canonical form from this list:
 {_KNOWN_BANKS}
 
-=== DOCUMENT ===
+================================================================================
+O vs 0 DISAMBIGUATION RULE
+================================================================================
+OCR sometimes renders the letter O as the digit 0. Apply these rules:
+- Suffixes such as "/D88", "/D66", "/D90" are ALWAYS preceded by the letter O:
+    write "O/D88" — NOT "0/D88".
+- Inside a purely numeric sequence with no suffix, treat ambiguous characters as 0.
+- When in doubt at a suffix boundary, use the letter O.
+
+================================================================================
+DOCUMENT
+================================================================================
 \"\"\"
 {text}
 \"\"\"
 
-=== OUTPUT ===
+================================================================================
+STEP-BY-STEP EXTRACTION CHECKLIST
+================================================================================
+Work through these steps before writing the JSON:
+
+STEP 1 — LOCATE THE FI CODE SECTION
+  Search near the bottom of the document for a heading containing the words
+  "FI CODE", "FI NUM", "FACILITY ACCOUNT", or "ACCOUNT DETAILS".
+
+STEP 2 — DETECT THE LAYOUT
+  Pipe characters (|) in that section → Layout A (table): read columns 1, 2, 3.
+  Label lines (FI CODE :, MASTER ACCOUNT NO :) → Layout B: read each label's value.
+
+STEP 3 — ASSIGN THE THREE VALUES IN ORDER
+  fi_num                ← 1st value (shortest, 7–9 digits, possibly with _ or -)
+  master_account_number ← 2nd value
+  sub_account_number    ← 3rd value (or null if genuinely absent)
+
+STEP 4 — SANITY-CHECK
+  • fi_num is 7–9 characters max, never longer than the master account.
+  • master_account_number ≠ fi_num.
+  • sub_account_number = master_account_number (this can be happened for some banks).
+  • None of these is a phone number, postcode, or RENTAS clearing account.
+
+STEP 5 — FIND THE BANK NAME
+  Check: signature block → RENTAS/IBG beneficiary label → letterhead near FI section.
+  Map to canonical form. The sender (Public Bank / Public Islamic Bank) is NOT the answer.
+
+STEP 6 — FIND THE CUSTOMER NAME
+  All-caps Malaysian name. Exclude staff, bank, and law firm names.
+
+STEP 7 — FIND THE CUSTOMER ADDRESS (if any)
+  Exclude bank branch and law firm (cc:) addresses.
+
+STEP 8 — OUTPUT THE JSON.
+
+================================================================================
+OUTPUT
+================================================================================
 Return ONLY this JSON object with no other text or explanation:
 {{
     "name": "<full customer name or null>",
