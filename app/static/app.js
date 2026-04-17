@@ -591,13 +591,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (!obj.ok || !obj.result.success) {
                         var msg = obj.result.detail || obj.result.message || ("HTTP " + obj.status);
                         setPillStatus(item.statusEl, "error", "Error");
+                        item.extractError = msg;
                         fillResultCard(card, null, null, msg);
+                        renderExportBtn();  
+
                     } else {
                         var allMatch = obj.result.comparison && obj.result.comparison.all_match;
                         var csvFound = obj.result.comparison && obj.result.comparison.csv_row_found;
                         var statusStr = !csvFound ? "warn" : (allMatch ? "pass" : "fail");
                         setPillStatus(item.statusEl, "done", "Done");
+                        item.extractResult = obj.result;
+                        item.extractStatus = statusStr;
                         fillResultCard(card, obj.result, statusStr, null);
+                        renderExportBtn();
                     }
                 })
                 .catch(function (err) {
@@ -770,6 +776,7 @@ document.addEventListener("DOMContentLoaded", function () {
         resetBtn.addEventListener("click", function () {
             queue = [];
             idCounter = 0;
+            if (exportBtn) { exportBtn.remove(); exportBtn = null; }
             isRunning = false;
             fileListEl.innerHTML = "";
             fileListEl.style.display = "none";
@@ -791,6 +798,116 @@ document.addEventListener("DOMContentLoaded", function () {
             return String(str || "")
                 .replace(/&/g, "&amp;").replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        // ---- export to TXT ----
+        var exportBtn = null;
+
+        function renderExportBtn() {
+            // Only show after at least one file is done
+            var anyDone = queue.some(function (q) { return q.extractResult || q.extractError; });
+            if (!anyDone) return;
+
+            if (!exportBtn) {
+                exportBtn = document.createElement("button");
+                exportBtn.className = "submit-btn";
+                exportBtn.style.cssText = "margin-top:8px; background:var(--pb-success); font-size:13px; height:42px;";
+                exportBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export Results to TXT';
+                exportBtn.addEventListener("click", exportToTxt);
+                // Insert after the reset button inside the upload card
+                resetBtn.parentNode.insertBefore(exportBtn, resetBtn.nextSibling);
+            }
+        }
+
+        function exportToTxt() {
+            var lines = [];
+            var ts = new Date().toLocaleString("en-MY", { timeZone: "Asia/Kuching" });
+            lines.push("=".repeat(72));
+            lines.push("BATCH EXTRACTION REPORT");
+            lines.push("Generated : " + ts);
+            lines.push("Total files: " + queue.length);
+            lines.push("=".repeat(72));
+
+            queue.forEach(function (item, idx) {
+                lines.push("");
+                lines.push("-".repeat(72));
+                lines.push("FILE " + (idx + 1) + " : " + item.file.name);
+                lines.push("-".repeat(72));
+
+                if (item.extractError) {
+                    lines.push("STATUS  : ERROR");
+                    lines.push("MESSAGE : " + item.extractError);
+                    return;
+                }
+
+                if (!item.extractResult) {
+                    lines.push("STATUS  : PENDING / NOT PROCESSED");
+                    return;
+                }
+
+                var d = item.extractResult.data || {};
+                var cmp = item.extractResult.comparison || null;
+
+                function val(key) {
+                    if (d[key] != null && d[key] !== "") return d[key];
+                    if (cmp && cmp[key] && cmp[key].extracted != null) return cmp[key].extracted;
+                    return "(not found)";
+                }
+
+                lines.push("STATUS           : " + (item.extractStatus === "pass" ? "ALL MATCH" : item.extractStatus === "fail" ? "MISMATCH" : "NO REFERENCE"));
+                lines.push("");
+                lines.push("EXTRACTED FIELDS");
+                lines.push("  Bank Name           : " + val("bank_name"));
+                lines.push("  Customer Name       : " + val("name"));
+                lines.push("  Master Account No.  : " + val("master_account_number"));
+                lines.push("  Sub Account No.     : " + val("sub_account_number"));
+                lines.push("  FI Number           : " + val("fi_num"));
+                lines.push("  Address             : " + val("address"));
+
+                if (cmp) {
+                    lines.push("");
+                    lines.push("VERIFICATION");
+                    if (!cmp.csv_row_found) {
+                        lines.push("  Reference row not found (key: " + cmp.filename_key + ")");
+                    } else {
+                        var VFIELDS = [
+                            ["bank_name",             "Bank Name          "],
+                            ["fi_num",                "FI Number          "],
+                            ["master_account_number", "Master Account No. "],
+                            ["sub_account_number",    "Sub Account No.    "],
+                        ];
+                        VFIELDS.forEach(function (pair) {
+                            var detail = cmp[pair[0]];
+                            if (!detail) return;
+                            var status = detail.match ? "PASS" : "FAIL";
+                            lines.push("  " + pair[1] + " : " + status +
+                                " | extracted=" + (detail.extracted || "(not found)") +
+                                " | expected=" + (detail.expected || "(not found)"));
+                        });
+                    }
+                }
+            });
+
+            lines.push("");
+            lines.push("=".repeat(72));
+            lines.push("END OF REPORT");
+            lines.push("=".repeat(72));
+
+            var blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            // Filename: batch_report_YYYYMMDD_HHMMSS.txt
+            var now = new Date();
+            var stamp = now.getFullYear() +
+                String(now.getMonth()+1).padStart(2,"0") +
+                String(now.getDate()).padStart(2,"0") + "_" +
+                String(now.getHours()).padStart(2,"0") +
+                String(now.getMinutes()).padStart(2,"0") +
+                String(now.getSeconds()).padStart(2,"0");
+            a.download = "batch_report_" + stamp + ".txt";
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
     })();

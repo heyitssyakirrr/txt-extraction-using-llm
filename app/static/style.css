@@ -794,3 +794,80 @@ html, body {
     .batch-fields-row { grid-template-columns: 1fr; }
     #batchResultsPanel { max-height: none; }
 }
+
+/* =========================================================
+   BATCH LAYOUT FIXES
+   ========================================================= */
+
+/* Let the batch page container fill full height */
+#panelBatch {
+    display: flex;
+    flex-direction: column;
+}
+
+#panelBatch .page-container {
+    flex: 1;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    overflow-y: auto;
+}
+
+/* Results panel scrolls independently, fills remaining space */
+#batchResultsPanel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    max-height: calc(100vh - 130px);
+    padding-bottom: 32px;
+}
+
+/* Each card body uses min-height so content is never squished */
+.batch-result-body-content {
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+}
+
+/* The two-column grid inside each card — give columns equal min space */
+.batch-fields-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;   /* columns don't stretch each other */
+    min-width: 0;
+}
+
+/* Each child of the grid row should not overflow */
+.batch-fields-row > * {
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Field values inside batch cards wrap properly */
+.batch-result-body-content .field-value {
+    word-break: break-all;
+    white-space: normal;
+}
+
+/* cmp-table inside batch cards — allow text wrap */
+.batch-result-body-content .cmp-table td {
+    white-space: normal;
+    word-break: break-all;
+}
+
+/* Remove border/padding from inner result cards inside batch */
+.batch-result-body-content .results-card {
+    border: none;
+    padding: 0;
+    width: 100%;
+}
+
+/* Collapse animation fix — body-inner needs overflow visible when open */
+.batch-result-body.open .batch-result-body-inner {
+    overflow: visible;
+}
