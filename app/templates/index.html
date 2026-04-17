@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }} — Internal Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+    <style>
+        /* Give the page-wrapper and tab panels correct height chain */
+        html, body { height: 100%; overflow: hidden; }
+        .page-wrapper { overflow: hidden; }
+
+        /* V1 tab: normal scroll */
+        #panelExtract { overflow: auto; }
+
+        /* V2 tab: no scroll on the panel itself — children handle it */
+        #panelBatch { overflow: hidden; height: 100%; }
+
+        /* Statement tab: normal scroll */
+        #panelSummarise { overflow: auto; }
+    </style>
 </head>
 <body data-max-upload-mb="{{ max_upload_mb }}">
 
@@ -146,10 +160,12 @@
             </div>
         </div>
 
-        <!-- TAB: CUSTOMER DETAILS V2 -->
+        <!-- TAB: CUSTOMER DETAILS V2 (BATCH) -->
         <div class="tab-panel" id="panelBatch" style="display:none;">
-            <div class="page-container" id="pageContainerBatch" style="align-items:flex-start; flex-wrap:nowrap;">
-                <section class="upload-panel" style="max-width:380px; flex-shrink:0;">
+            <div class="page-container" id="pageContainerBatch">
+
+                <!-- Left: compact upload column -->
+                <section class="upload-panel">
                     <div class="panel-header">
                         <div class="hero-badge">Batch Extraction</div>
                         <h1 class="page-title">Batch Customer Data Extraction</h1>
@@ -207,9 +223,8 @@
                     </div>
                 </section>
 
-                <!-- Batch results column -->
-                <section id="batchResultsPanel" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:16px;">
-                </section>
+                <!-- Right: results panel — fills remaining width, scrolls independently -->
+                <section id="batchResultsPanel"></section>
 
             </div>
         </div>

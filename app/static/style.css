@@ -519,39 +519,10 @@ html, body {
     background: rgba(255,255,255,0.5);
 }
 
-/* RESPONSIVE */
-@media (max-width: 900px) {
-    .topbar { padding: 0 24px; }
-    .topbar-title, .topbar-right { display: none; }
-    .tab-bar { padding: 0 24px; }
-
-    .page-container {
-        flex-direction: column;
-        align-items: center;
-        padding: 32px 24px;
-    }
-
-    .upload-panel,
-    .page-container.has-results .upload-panel { max-width: 100%; }
-
-    .page-container.has-results .results-panel,
-    .page-container.has-results .results-panel--wide {
-        width: 100%;
-        opacity: 1;
-        overflow: visible;
-    }
-
-    .results-card,
-    .results-card--wide { width: 100%; }
-
-    .page-footer { padding: 0 24px; }
-}
-
 /* =========================================================
    COMPARISON / VERIFICATION PANEL
    ========================================================= */
 
-/* Two-card column layout inside the wide results panel */
 .results-cards-row {
     display: flex;
     flex-direction: column;
@@ -567,7 +538,6 @@ html, body {
     padding: 28px 26px;
 }
 
-/* Overall badge */
 .cmp-badge {
     display: inline-flex;
     align-items: center;
@@ -597,7 +567,6 @@ html, body {
     border: 1px solid #ead7a5;
 }
 
-/* Comparison table */
 .cmp-table-wrap {
     overflow-x: auto;
 }
@@ -644,7 +613,6 @@ html, body {
     text-align: center;
 }
 
-/* Row-level colouring */
 .cmp-table tr.cmp-pass .cmp-status { color: var(--pb-success); }
 .cmp-table tr.cmp-fail .cmp-status { color: var(--pb-error); }
 .cmp-table tr.cmp-warn .cmp-status { color: var(--pb-warn); }
@@ -652,13 +620,12 @@ html, body {
 .cmp-table tr.cmp-pass td { background: #f8fdf9; }
 .cmp-table tr.cmp-warn td { background: var(--pb-warn-bg); }
 
-/* Wider results panel for extraction tab */
 .page-container.has-results .results-panel--wide {
     width: 680px;
 }
 
 /* =========================================================
-   BATCH EXTRACTION
+   BATCH FILE PILL (queue list)
    ========================================================= */
 
 .batch-file-pill {
@@ -708,12 +675,17 @@ html, body {
 .batch-file-pill .pill-remove:hover { color: var(--pb-error); }
 .batch-file-pill .pill-remove svg { width: 14px; height: 14px; stroke: currentColor; }
 
-/* Result card per file */
+/* =========================================================
+   BATCH RESULT CARDS
+   ========================================================= */
+
 .batch-result-card {
     background: var(--pb-surface);
     border: 1px solid var(--pb-border);
     border-radius: var(--radius);
     overflow: hidden;
+    width: 100%;
+    flex-shrink: 0;
 }
 
 .batch-result-header {
@@ -749,10 +721,10 @@ html, body {
     flex-shrink: 0;
 }
 
-.batch-result-badge--pass  { background: var(--pb-success-bg); color: var(--pb-success); border: 1px solid #b2dfc5; }
-.batch-result-badge--fail  { background: var(--pb-error-bg); color: var(--pb-error); border: 1px solid #ebc3c1; }
-.batch-result-badge--warn  { background: var(--pb-warn-bg); color: var(--pb-warn); border: 1px solid #ead7a5; }
-.batch-result-badge--processing { background: #fde3de; color: var(--pb-red-dark); border: 1px solid #efc0b6; }
+.batch-result-badge--pass        { background: var(--pb-success-bg); color: var(--pb-success); border: 1px solid #b2dfc5; }
+.batch-result-badge--fail        { background: var(--pb-error-bg); color: var(--pb-error); border: 1px solid #ebc3c1; }
+.batch-result-badge--warn        { background: var(--pb-warn-bg); color: var(--pb-warn); border: 1px solid #ead7a5; }
+.batch-result-badge--processing  { background: #fde3de; color: var(--pb-red-dark); border: 1px solid #efc0b6; }
 
 .batch-result-chevron {
     width: 16px;
@@ -762,6 +734,7 @@ html, body {
     flex-shrink: 0;
 }
 
+/* Collapse animation */
 .batch-result-body {
     display: grid;
     grid-template-rows: 0fr;
@@ -776,6 +749,10 @@ html, body {
     overflow: hidden;
 }
 
+.batch-result-body.open .batch-result-body-inner {
+    overflow: visible;
+}
+
 .batch-result-body-content {
     padding: 20px 18px;
     display: flex;
@@ -783,91 +760,214 @@ html, body {
     gap: 16px;
 }
 
-/* Two-column layout inside each batch result card */
-.batch-fields-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-@media (max-width: 900px) {
-    .batch-fields-row { grid-template-columns: 1fr; }
-    #batchResultsPanel { max-height: none; }
-}
-
-/* =========================================================
-   BATCH LAYOUT FIXES
-   ========================================================= */
-
-/* Let the batch page container fill full height */
-#panelBatch {
-    display: flex;
-    flex-direction: column;
-}
-
-#panelBatch .page-container {
-    flex: 1;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    overflow-y: auto;
-}
-
-/* Results panel scrolls independently, fills remaining space */
-#batchResultsPanel {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    overflow-y: auto;
-    max-height: calc(100vh - 130px);
-    padding-bottom: 32px;
-}
-
-/* Each card body uses min-height so content is never squished */
-.batch-result-body-content {
-    padding: 20px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-}
-
-/* The two-column grid inside each card — give columns equal min space */
+/* Two-column grid inside each batch result card */
 .batch-fields-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
-    align-items: start;   /* columns don't stretch each other */
+    align-items: start;
+    width: 100%;
     min-width: 0;
 }
 
-/* Each child of the grid row should not overflow */
 .batch-fields-row > * {
     min-width: 0;
-    overflow: hidden;
 }
 
-/* Field values inside batch cards wrap properly */
-.batch-result-body-content .field-value {
-    word-break: break-all;
-    white-space: normal;
-}
-
-/* cmp-table inside batch cards — allow text wrap */
-.batch-result-body-content .cmp-table td {
-    white-space: normal;
-    word-break: break-all;
-}
-
-/* Remove border/padding from inner result cards inside batch */
+/* Inner cards inside batch rows — strip their own border/padding */
 .batch-result-body-content .results-card {
     border: none;
     padding: 0;
     width: 100%;
 }
 
-/* Collapse animation fix — body-inner needs overflow visible when open */
-.batch-result-body.open .batch-result-body-inner {
-    overflow: visible;
+/* Text sizing inside cards */
+.batch-result-body-content .field-value {
+    word-break: break-all;
+    white-space: normal;
+    font-size: 13px;
+}
+
+.batch-result-body-content .field-label {
+    font-size: 10px;
+}
+
+.batch-result-body-content .field-row {
+    padding: 10px 0;
+}
+
+/* cmp-table inside batch cards */
+.batch-result-body-content .cmp-table td {
+    white-space: normal;
+    word-break: break-all;
+    font-size: 11px;
+    padding: 7px 8px;
+}
+
+.batch-result-body-content .cmp-table th {
+    font-size: 10px;
+    padding: 6px 8px;
+}
+
+/* =========================================================
+   BATCH TAB LAYOUT — full-height two-column
+   ========================================================= */
+
+#panelBatch {
+    display: flex;
+    flex-direction: column;
+    /* fill the tab-panel height (tab-panel is flex:1 + overflow:auto on parent,
+       but we want internal scroll control, so override here) */
+    height: 100%;
+    overflow: hidden;
+}
+
+#panelBatch .page-container {
+    flex: 1;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    padding: 20px 24px 0 24px;
+    gap: 20px;
+    height: 100%;
+    justify-content: flex-start;
+}
+
+/* ---- Left upload column: narrow, fixed, scrollable if needed ---- */
+#panelBatch .upload-panel {
+    max-width: 280px !important;
+    min-width: 240px;
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-bottom: 20px;
+    /* scrollbar only appears when content overflows */
+}
+
+#panelBatch .panel-header {
+    padding: 14px 16px;
+}
+
+#panelBatch .page-title {
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+#panelBatch .page-subtitle {
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+#panelBatch .upload-card {
+    padding: 16px;
+    gap: 12px;
+}
+
+#panelBatch .drop-zone {
+    min-height: 110px;
+    padding: 18px 14px;
+}
+
+#panelBatch .drop-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+#panelBatch .drop-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+#panelBatch .drop-title {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+#panelBatch .drop-hint {
+    font-size: 11px;
+}
+
+#panelBatch .submit-btn {
+    height: 40px;
+    font-size: 13px;
+}
+
+#panelBatch .reset-btn {
+    height: 36px;
+    font-size: 12px;
+}
+
+/* ---- Right results column: fills rest, independently scrollable ---- */
+#batchResultsPanel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-bottom: 24px;
+    /* Remove the fixed max-height so it uses the parent's flex sizing */
+    max-height: none;
+    height: 100%;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+    .topbar { padding: 0 24px; }
+    .topbar-title, .topbar-right { display: none; }
+    .tab-bar { padding: 0 24px; }
+
+    .page-container {
+        flex-direction: column;
+        align-items: center;
+        padding: 32px 24px;
+    }
+
+    .upload-panel,
+    .page-container.has-results .upload-panel { max-width: 100%; }
+
+    .page-container.has-results .results-panel,
+    .page-container.has-results .results-panel--wide {
+        width: 100%;
+        opacity: 1;
+        overflow: visible;
+    }
+
+    .results-card,
+    .results-card--wide { width: 100%; }
+
+    .page-footer { padding: 0 24px; }
+
+    /* Batch responsive overrides */
+    #panelBatch { height: auto; overflow: auto; }
+
+    #panelBatch .page-container {
+        flex-direction: column;
+        align-items: stretch;
+        height: auto;
+        overflow: visible;
+        padding: 16px;
+    }
+
+    #panelBatch .upload-panel {
+        max-width: 100% !important;
+        width: 100%;
+        overflow: visible;
+    }
+
+    #batchResultsPanel {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .batch-fields-row { grid-template-columns: 1fr; }
 }
