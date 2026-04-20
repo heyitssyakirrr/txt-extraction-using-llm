@@ -820,7 +820,6 @@ html, body {
     overflow: hidden;
 }
 
-/* Before any files are submitted: centered, same width as V1 */
 #panelBatch .page-container {
     flex: 1;
     align-items: flex-start;
@@ -832,7 +831,6 @@ html, body {
     height: 100%;
 }
 
-/* Upload panel: full V1 width by default */
 #panelBatch .upload-panel {
     width: 100%;
     max-width: 680px;
@@ -845,22 +843,11 @@ html, body {
     transition: max-width 0.4s ease;
 }
 
-#panelBatch .page-container:not(.has-results) {
-    align-items: center;
-    justify-content: center;
-}
-
-#panelBatch .page-container:not(.has-results) .upload-panel {
-    max-width: 680px;
-}
-
-/* Once results are present, shrink the upload panel to a sidebar */
 #panelBatch .page-container.has-results .upload-panel {
-    max-width: 420px;
-    min-width: 320px;
+    max-width: 340px;
+    min-width: 280px;
 }
 
-/* Compact panel header after submit */
 #panelBatch .page-container.has-results .panel-header {
     padding: 14px 16px;
 }
@@ -916,7 +903,6 @@ html, body {
     font-size: 12px;
 }
 
-/* Right results panel */
 #batchResultsPanel {
     flex: 1;
     min-width: 0;
@@ -959,7 +945,6 @@ html, body {
 
     .page-footer { padding: 0 24px; }
 
-    /* Batch responsive overrides */
     #panelBatch { height: auto; overflow: auto; }
 
     #panelBatch .page-container {

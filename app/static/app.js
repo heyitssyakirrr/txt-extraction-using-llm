@@ -6,12 +6,19 @@ document.addEventListener("DOMContentLoaded", function () {
     // TAB SWITCHING
     // -------------------------------------------------------------------------
     window.switchTab = function (tab) {
-        document.getElementById("panelExtract").style.display   = tab === "extract"   ? "flex" : "none";
-        document.getElementById("panelSummarise").style.display = tab === "summarise" ? "flex" : "none";
-        document.getElementById("panelBatch").style.display     = tab === "batch"     ? "flex" : "none";
-        document.getElementById("tabExtract").classList.toggle("active",   tab === "extract");
-        document.getElementById("tabSummarise").classList.toggle("active", tab === "summarise");
-        document.getElementById("tabBatch").classList.toggle("active",     tab === "batch");
+        var panelExtract   = document.getElementById("panelExtract");
+        var panelSummarise = document.getElementById("panelSummarise");
+        var panelBatch     = document.getElementById("panelBatch");
+        var tabExtract     = document.getElementById("tabExtract");
+        var tabSummarise   = document.getElementById("tabSummarise");
+        var tabBatch       = document.getElementById("tabBatch");
+
+        if (panelExtract)   panelExtract.style.display   = tab === "extract"   ? "flex" : "none";
+        if (panelSummarise) panelSummarise.style.display = tab === "summarise" ? "flex" : "none";
+        if (panelBatch)     panelBatch.style.display     = tab === "batch"     ? "flex" : "none";
+        if (tabExtract)     tabExtract.classList.toggle("active",   tab === "extract");
+        if (tabSummarise)   tabSummarise.classList.toggle("active", tab === "summarise");
+        if (tabBatch)       tabBatch.classList.toggle("active",     tab === "batch");
     };
 
     // -------------------------------------------------------------------------
@@ -452,6 +459,8 @@ document.addEventListener("DOMContentLoaded", function () {
         var progressText  = document.getElementById("batchProgressText");
         var resultsPanel  = document.getElementById("batchResultsPanel");
 
+        if (!dropZone) return;
+
         // Array of {file, id, pillEl, statusEl}
         var queue = [];
         var isRunning = false;
@@ -807,7 +816,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 exportBtn.style.cssText = "margin-top:8px; background:var(--pb-success); font-size:13px; height:42px;";
                 exportBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export Verification to CSV';
                 exportBtn.addEventListener("click", exportToCsv);
-                resetBtn.parentNode.appendChild(exportBtn);
+                var parent = resetBtn.parentNode;
+                var next = resetBtn.nextSibling;
+                if (next) {
+                    parent.insertBefore(exportBtn, next);
+                } else {
+                    parent.appendChild(exportBtn);
+                }
             }
         }
 
@@ -876,7 +891,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 String(now.getMinutes()).padStart(2, "0") +
                 String(now.getSeconds()).padStart(2, "0");
             a.download = "verification_" + stamp + ".csv";
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 
