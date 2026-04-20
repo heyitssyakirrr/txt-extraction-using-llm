@@ -845,10 +845,19 @@ html, body {
     transition: max-width 0.4s ease;
 }
 
+#panelBatch .page-container:not(.has-results) {
+    align-items: center;
+    justify-content: center;
+}
+
+#panelBatch .page-container:not(.has-results) .upload-panel {
+    max-width: 680px;
+}
+
 /* Once results are present, shrink the upload panel to a sidebar */
 #panelBatch .page-container.has-results .upload-panel {
-    max-width: 340px;
-    min-width: 280px;
+    max-width: 420px;
+    min-width: 320px;
 }
 
 /* Compact panel header after submit */
