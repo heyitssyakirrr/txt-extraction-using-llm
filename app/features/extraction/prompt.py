@@ -1,37 +1,25 @@
 from __future__ import annotations
 
-_KNOWN_BANKS = """\
-- Affin Bank
-- Al Rajhi Bank
-- Alliance Bank
-- Alliance Islamic Bank
-- Ambank
-- Ambank Islamic
-- Bank Islam
-- Bank Muamalat
-- Bank of China
-- Bank Rakyat
-- BSN
-- CIMB Bank
-- Hong Leong Bank
-- Hong Leong Islamic Bank
-- HSBC Amanah
-- HSBC Bank
-- Kuwait Finance House
-- Maybank
-- Maybank Islamic
-- MBSB Bank
-- OCBC
-- OCBC Al-Amin
-- RHB Bank
-- RHB Islamic Bank
-- Standard Chartered Bank
-- Standard Chartered Saadiq Islamic
-- UOB"""
+from app.features.extraction.knowledge_base import build_knowledge_block
 
 
 def build_extraction_prompt(text: str) -> str:
-    """Prompt for customer detail extraction."""
+    """
+    Build the extraction prompt for the given document text.
+
+    Python pre-scans the text to detect which bank is mentioned, then injects
+    only that bank's few-shot examples and canonical name into the prompt.
+    This keeps token count minimal while still grounding the LLM.
+    """
+    few_shot_block, known_bank_line = build_knowledge_block(text)
+
+    # Only render the knowledge-base section when detection succeeded
+    kb_section = (
+        f"\n{few_shot_block}\n"
+        if few_shot_block
+        else ""
+    )
+
     return f"""\
 You are a data extraction assistant for a Malaysian bank's internal system.
 Your task is to extract exactly six fields from a bank document.
@@ -41,7 +29,7 @@ Your task is to extract exactly six fields from a bank document.
 1. Return ONLY a raw JSON object — no markdown, no code blocks, no explanation.
 2. Use the full context of the document to determine the correct values.
 3. Do NOT repeat or explain the fields. Output the JSON object and nothing else.
-
+{kb_section}
 ================================================================================
 FIELD 1 — NAME
 ================================================================================
@@ -157,6 +145,7 @@ In ALL layouts the logical roles are:
 - NOT a phone number, postcode, reference number, or RENTAS clearing account.
 - If multiple comma-separated candidates exist, choose the one starting with 0 or 3.
 - If unsure between two candidates, choose the shorter purely-numeric one.
+- Cross-check against the knowledge base examples above for the expected prefix pattern.
 
 --- MASTER ACCOUNT NUMBER ---
 - The primary loan/account identifier for the third-party bank.
@@ -171,6 +160,7 @@ In ALL layouts the logical roles are:
   The RENTAS account is labelled under a "RENTAS" or "IBG" payment instruction
   block (e.g. "Account No. 309-909570-005") and belongs to the bank's internal
   clearing system. It will NOT appear inside the FI Code section.
+- Cross-check format against the knowledge base examples above.
 
 --- SUB ACCOUNT NUMBER ---
 - A secondary account number in the same section, listed after the master account.
@@ -194,6 +184,8 @@ In ALL layouts the logical roles are:
 - Do NOT duplicate the master account number as the sub account unless the
   document explicitly repeats the same value for both fields OR uses a combined
   "MASTER / SUB" label.
+- Bank Muamalat EXCEPTION: sub_account_number is always "00" for Bank Muamalat.
+- Cross-check format against the knowledge base examples above.
 
 ================================================================================
 FIELD 5 — ADDRESS
@@ -216,7 +208,7 @@ TO a customer, about a third-party bank account being redeemed or refinanced.
     * Signature block  : "for <Bank Name> Berhad", "Yours faithfully, <Bank Name>"
     * RENTAS/IBG block : "PAYABLE TO: <Bank Name>" or "Beneficiary: <Bank Name>"
     * Letterhead / address block near the FI Code section
-- You MUST return the EXACT canonical form from the known bank list below.
+- You MUST return the EXACT canonical form from the list below.
   No other spelling, casing, or suffix is acceptable.
 - If the document shows an Islamic variant of a bank, return the Islamic canonical
   name (e.g. "Maybank Islamic", "HSBC Amanah", "OCBC Al-Amin").
@@ -253,7 +245,7 @@ MANDATORY MAPPING RULES — apply these before returning any bank name:
   "HSBC Bank ..."                     → "HSBC Bank"
 
 Known bank names — return the EXACT canonical form from this list:
-{_KNOWN_BANKS}
+{known_bank_line}
 
 ================================================================================
 O vs 0 DISAMBIGUATION RULE
@@ -299,10 +291,13 @@ STEP 3 — ASSIGN THE THREE VALUES
   master_account_number ← as described above for the detected layout
   sub_account_number    ← as described above for the detected layout (or null)
 
+  Cross-check each value's format against the knowledge base examples above.
+
 STEP 4 — SANITY-CHECK
   • fi_num starts with 0 or 3, is 7–9 characters, never longer than master account.
   • fi_num never starts with 1.
   • master_account_number ≠ fi_num.
+  • fi_num prefix matches the key pattern shown in the knowledge base above.
   • In Layout D, confirm master_account_number came from the (b) "Master Account"
     line and sub_account_number came from the (c) "Sub Account" line — they are
     different values; if they are identical double-check the document.
@@ -316,10 +311,12 @@ STEP 4 — SANITY-CHECK
   • If a value had comma-separated candidates, confirm only the first (or the
     0/3-prefixed one for fi_num) was taken.
   • Parenthetical text like "(Term Financing-i)" has been stripped.
+  • Bank Muamalat: sub must be "00" — not copied from master.
 
 STEP 5 — FIND THE BANK NAME
   Check: signature block → RENTAS/IBG beneficiary label → letterhead near FI section.
-  Map to canonical form. The sender (Public Bank / Public Islamic Bank) is NOT the answer.
+  Map to the canonical form listed above.
+  The sender (Public Bank / Public Islamic Bank) is NOT the answer.
 
 STEP 6 — FIND THE CUSTOMER NAME
   All-caps Malaysian name. Exclude staff, bank, and law firm names.
@@ -339,6 +336,6 @@ Return ONLY this JSON object with no other text or explanation:
     "sub_account_number": "<sub account number copied exactly as printed, or null>",
     "address": "<full address or null>",
     "fi_num": "<FI number copied exactly as printed, or null>",
-    "bank_name": "<canonical bank name from the known list, or null>"
+    "bank_name": "<canonical bank name from the list above, or null>"
 }}
 """
