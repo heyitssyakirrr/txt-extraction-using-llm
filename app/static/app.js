@@ -307,8 +307,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Render comparison panel first
             renderComparison(result.comparison || null);
 
-            // collect ALL warnings before showing — previously the second
-            // showWarn() call silently overwrote the first one.
+            // collect ALL warnings before showing
             var warnings = [];
 
             var missing = [];
@@ -519,7 +518,7 @@ document.addEventListener("DOMContentLoaded", function () {
             removeBtn.title = "Remove";
             removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
             removeBtn.addEventListener("click", function () {
-                if (isRunning) return; // don't allow removal mid-run
+                if (isRunning) return;
                 queue = queue.filter(function (q) { return q.id !== id; });
                 el.remove();
                 if (queue.length === 0) {
@@ -545,10 +544,8 @@ document.addEventListener("DOMContentLoaded", function () {
             progressBar.style.display = "block";
             hideError();
 
-            // Mark container so upload panel shrinks to sidebar
             document.getElementById("pageContainerBatch").classList.add("has-results");
 
-            // Disable all remove buttons
             var removes = fileListEl.querySelectorAll(".pill-remove");
             for (var i = 0; i < removes.length; i++) removes[i].disabled = true;
 
@@ -560,7 +557,6 @@ document.addEventListener("DOMContentLoaded", function () {
             updateProgress(index, total);
 
             if (index >= total) {
-                // All done
                 isRunning = false;
                 spinner.classList.remove("visible");
                 submitLabel.textContent = "Start Batch Extraction";
@@ -574,11 +570,9 @@ document.addEventListener("DOMContentLoaded", function () {
             var item = queue[index];
             setPillStatus(item.statusEl, "running", "Processing…");
 
-            // Create placeholder result card immediately
             var card = makeResultCard(item.file.name);
             item.resultCardEl = card.el;
             resultsPanel.appendChild(card.el);
-            // Auto-scroll to new card
             card.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
             var formData = new FormData();
@@ -596,8 +590,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         setPillStatus(item.statusEl, "error", "Error");
                         item.extractError = msg;
                         fillResultCard(card, null, null, msg);
-                        renderExportBtn();  
-
+                        renderExportBtn();
                     } else {
                         var allMatch = obj.result.comparison && obj.result.comparison.all_match;
                         var csvFound = obj.result.comparison && obj.result.comparison.csv_row_found;
@@ -661,7 +654,7 @@ document.addEventListener("DOMContentLoaded", function () {
             header.appendChild(chevron);
 
             var body = document.createElement("div");
-            body.className = "batch-result-body open"; // open by default while processing
+            body.className = "batch-result-body open";
 
             var bodyInner = document.createElement("div");
             bodyInner.className = "batch-result-body-inner";
@@ -675,7 +668,6 @@ document.addEventListener("DOMContentLoaded", function () {
             el.appendChild(header);
             el.appendChild(body);
 
-            // Toggle collapse on header click
             header.addEventListener("click", function () {
                 var isOpen = body.classList.contains("open");
                 body.classList.toggle("open", !isOpen);
@@ -686,7 +678,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function fillResultCard(card, result, statusStr, errorText) {
-            // Update badge
             if (errorText) {
                 card.badge.className = "batch-result-badge batch-result-badge--fail";
                 card.badge.textContent = "Error";
@@ -699,7 +690,6 @@ document.addEventListener("DOMContentLoaded", function () {
             card.badge.className = "batch-result-badge batch-result-badge--" + (badgeClass[statusStr] || "warn");
             card.badge.textContent = badgeLabels[statusStr] || "Done";
 
-            // Build fields + comparison side by side
             var d = result.data || {};
 
             function fieldVal(key) {
@@ -804,11 +794,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
-        // ---- export to TXT ----
+        // ---- export to CSV ----
         var exportBtn = null;
 
         function renderExportBtn() {
-            // Only show after at least one file is done
             var anyDone = queue.some(function (q) { return q.extractResult || q.extractError; });
             if (!anyDone) return;
 
@@ -816,102 +805,90 @@ document.addEventListener("DOMContentLoaded", function () {
                 exportBtn = document.createElement("button");
                 exportBtn.className = "submit-btn";
                 exportBtn.style.cssText = "margin-top:8px; background:var(--pb-success); font-size:13px; height:42px;";
-                exportBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export Results to TXT';
-                exportBtn.addEventListener("click", exportToTxt);
-                // Insert after the reset button inside the upload card
+                exportBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export Verification to CSV';
+                exportBtn.addEventListener("click", exportToCsv);
                 resetBtn.parentNode.insertBefore(exportBtn, resetBtn.nextSibling);
             }
         }
 
-        function exportToTxt() {
-            var lines = [];
-            var ts = new Date().toLocaleString("en-MY", { timeZone: "Asia/Kuching" });
-            lines.push("=".repeat(72));
-            lines.push("BATCH EXTRACTION REPORT");
-            lines.push("Generated : " + ts);
-            lines.push("Total files: " + queue.length);
-            lines.push("=".repeat(72));
+        function exportToCsv() {
+            // One row per field per file
+            // Columns: Filename, Field, Extracted, Expected, Match
+            var FIELDS = [
+                { key: "bank_name",             label: "Bank Name" },
+                { key: "fi_num",                label: "FI Code" },
+                { key: "master_account_number", label: "Master Account No." },
+                { key: "sub_account_number",    label: "Sub Account No." },
+            ];
 
-            queue.forEach(function (item, idx) {
-                lines.push("");
-                lines.push("-".repeat(72));
-                lines.push("FILE " + (idx + 1) + " : " + item.file.name);
-                lines.push("-".repeat(72));
+            var rows = [];
 
-                if (item.extractError) {
-                    lines.push("STATUS  : ERROR");
-                    lines.push("MESSAGE : " + item.extractError);
+            // Header
+            rows.push(csvRow(["Filename", "Field", "Extracted", "Expected", "Match"]));
+
+            queue.forEach(function (item) {
+                var filename = item.file.name;
+
+                if (item.extractError || !item.extractResult) {
+                    // File errored — emit one row per field with ERROR status
+                    FIELDS.forEach(function (f) {
+                        rows.push(csvRow([filename, f.label, "ERROR", "", "FAIL"]));
+                    });
                     return;
                 }
 
-                if (!item.extractResult) {
-                    lines.push("STATUS  : PENDING / NOT PROCESSED");
-                    return;
-                }
-
-                var d = item.extractResult.data || {};
                 var cmp = item.extractResult.comparison || null;
 
-                function val(key) {
-                    if (d[key] != null && d[key] !== "") return d[key];
-                    if (cmp && cmp[key] && cmp[key].extracted != null) return cmp[key].extracted;
-                    return "(not found)";
-                }
+                FIELDS.forEach(function (f) {
+                    var extracted = "";
+                    var expected  = "";
+                    var match     = "";
 
-                lines.push("STATUS           : " + (item.extractStatus === "pass" ? "ALL MATCH" : item.extractStatus === "fail" ? "MISMATCH" : "NO REFERENCE"));
-                lines.push("");
-                lines.push("EXTRACTED FIELDS");
-                lines.push("  Bank Name           : " + val("bank_name"));
-                lines.push("  Customer Name       : " + val("name"));
-                lines.push("  Master Account No.  : " + val("master_account_number"));
-                lines.push("  Sub Account No.     : " + val("sub_account_number"));
-                lines.push("  FI Number           : " + val("fi_num"));
-                lines.push("  Address             : " + val("address"));
-
-                if (cmp) {
-                    lines.push("");
-                    lines.push("VERIFICATION");
-                    if (!cmp.csv_row_found) {
-                        lines.push("  Reference row not found (key: " + cmp.filename_key + ")");
+                    if (cmp && cmp[f.key]) {
+                        extracted = cmp[f.key].extracted != null ? cmp[f.key].extracted : "";
+                        expected  = cmp[f.key].expected  != null ? cmp[f.key].expected  : "";
+                        if (!cmp.csv_row_found) {
+                            match = "NO REFERENCE";
+                        } else {
+                            match = cmp[f.key].match ? "PASS" : "FAIL";
+                        }
                     } else {
-                        var VFIELDS = [
-                            ["bank_name",             "Bank Name          "],
-                            ["fi_num",                "FI Number          "],
-                            ["master_account_number", "Master Account No. "],
-                            ["sub_account_number",    "Sub Account No.    "],
-                        ];
-                        VFIELDS.forEach(function (pair) {
-                            var detail = cmp[pair[0]];
-                            if (!detail) return;
-                            var status = detail.match ? "PASS" : "FAIL";
-                            lines.push("  " + pair[1] + " : " + status +
-                                " | extracted=" + (detail.extracted || "(not found)") +
-                                " | expected=" + (detail.expected || "(not found)"));
-                        });
+                        // Fallback: pull from extracted data, no reference available
+                        var d = item.extractResult.data || {};
+                        extracted = d[f.key] != null ? d[f.key] : "";
+                        match = "NO REFERENCE";
                     }
-                }
+
+                    rows.push(csvRow([filename, f.label, extracted, expected, match]));
+                });
             });
 
-            lines.push("");
-            lines.push("=".repeat(72));
-            lines.push("END OF REPORT");
-            lines.push("=".repeat(72));
+            var blob = new Blob([rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+            var url  = URL.createObjectURL(blob);
+            var a    = document.createElement("a");
+            a.href   = url;
 
-            var blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement("a");
-            a.href = url;
-            // Filename: batch_report_YYYYMMDD_HHMMSS.txt
-            var now = new Date();
+            var now   = new Date();
             var stamp = now.getFullYear() +
-                String(now.getMonth()+1).padStart(2,"0") +
-                String(now.getDate()).padStart(2,"0") + "_" +
-                String(now.getHours()).padStart(2,"0") +
-                String(now.getMinutes()).padStart(2,"0") +
-                String(now.getSeconds()).padStart(2,"0");
-            a.download = "batch_report_" + stamp + ".txt";
+                String(now.getMonth() + 1).padStart(2, "0") +
+                String(now.getDate()).padStart(2, "0") + "_" +
+                String(now.getHours()).padStart(2, "0") +
+                String(now.getMinutes()).padStart(2, "0") +
+                String(now.getSeconds()).padStart(2, "0");
+            a.download = "verification_" + stamp + ".csv";
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // Wrap a single CSV row — quote fields that contain commas, quotes, or newlines
+        function csvRow(fields) {
+            return fields.map(function (v) {
+                var s = String(v == null ? "" : v);
+                if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
+                    s = '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }).join(",");
         }
 
     })();

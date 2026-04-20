@@ -28,117 +28,149 @@ REFERENCE_CSV_PATH = Path("data/reference.csv")
 
 # ---------------------------------------------------------------------------
 # Canonical bank name map
+# Approved output list:
+#   Affin Bank, Al Rajhi Bank, Alliance Bank, Alliance Islamic Bank,
+#   Ambank, Ambank Islamic, Bank Islam, Bank Muamalat, Bank of China,
+#   Bank Rakyat, BSN, CIMB Bank, Hong Leong Bank, Hong Leong Islamic Bank,
+#   HSBC Amanah, HSBC Bank, Kuwait Finance House, Maybank, Maybank Islamic,
+#   MBSB Bank, OCBC, OCBC Al-Amin, RHB Bank, RHB Islamic Bank,
+#   Standard Chartered Bank, Standard Chartered Saadiq Islamic, UOB
 # ---------------------------------------------------------------------------
 _BANK_CANONICAL: dict[str, str] = {
-    # BSN variants
-    "bsn":                          "BSN",
-    "banksimpanannasional":         "BSN",
-    "banksimpanannasionalberhad":   "BSN",
+    # BSN
+    "bsn":                              "BSN",
+    "banksimpanannasional":             "BSN",
+    "banksimpanannasionalberhad":       "BSN",
 
     # Maybank
-    "maybank":                      "Maybank",
-    "maybankberhad":                "Maybank",
-    "malayanbankingberhad":         "Maybank",
-    "maybankislamic":               "Maybank Islamic",
-    "maybankislamicberhad":         "Maybank Islamic",
+    "maybank":                          "Maybank",
+    "maybankberhad":                    "Maybank",
+    "malayanbankingberhad":             "Maybank",
+    "maybankislamic":                   "Maybank Islamic",
+    "maybankislamicberhad":             "Maybank Islamic",
 
-    # CIMB
-    "cimbbank":                     "CIMB Bank",
-    "cimbbankberhad":               "CIMB Bank",
-    "cimbislamic":                  "CIMB Islamic",
-    "cimbislamicberhad":            "CIMB Islamic",
+    # CIMB — no Islamic entry; both map to "CIMB Bank"
+    "cimb":                             "CIMB Bank",
+    "cimbbank":                         "CIMB Bank",
+    "cimbbankberhad":                   "CIMB Bank",
+    "cimbislamic":                      "CIMB Bank",
+    "cimbislamicberhad":                "CIMB Bank",
 
     # Alliance
-    "alliancebank":                 "Alliance Bank",
-    "alliancebankberhad":           "Alliance Bank",
-    "allianceislamicbank":          "Alliance Islamic Bank",
-    "allianceislamicbankberhad":    "Alliance Islamic Bank",
-    "alliancefinanceberhad":        "Alliance Bank",
+    "alliancebank":                     "Alliance Bank",
+    "alliancebankberhad":               "Alliance Bank",
+    "alliancebankmalaysiaberhad":       "Alliance Bank",
+    "alliancefinanceberhad":            "Alliance Bank",
+    "allianceislamicbank":              "Alliance Islamic Bank",
+    "allianceislamicbankberhad":        "Alliance Islamic Bank",
 
     # Hong Leong
-    "hongleongbank":                "Hong Leong Bank",
-    "hongleongbankberhad":          "Hong Leong Bank",
-    "hongleongislamicbank":         "Hong Leong Islamic Bank",
-    "hongleongislamicbankberhad":   "Hong Leong Islamic Bank",
+    "hongleongbank":                    "Hong Leong Bank",
+    "hongleongbankberhad":              "Hong Leong Bank",
+    "hongleongislamicbank":             "Hong Leong Islamic Bank",
+    "hongleongislamicbankberhad":       "Hong Leong Islamic Bank",
 
     # RHB
-    "rhbbank":                      "RHB Bank",
-    "rhbbankberhad":                "RHB Bank",
-    "rhbislamicbank":               "RHB Islamic Bank",
-    "rhbislamicbankberhad":         "RHB Islamic Bank",
+    "rhb":                              "RHB Bank",
+    "rhbbank":                          "RHB Bank",
+    "rhbbankberhad":                    "RHB Bank",
+    "rhbislamicbank":                   "RHB Islamic Bank",
+    "rhbislamicbankberhad":             "RHB Islamic Bank",
 
-    # AmBank
-    "ambank":                       "AmBank",
-    "ambankberhad":                 "AmBank",
-    "ambankislamic":                "AmBank Islamic",
-    "ambankislamicberhad":          "AmBank Islamic",
-    "ammbankberhad":                "AmBank",
+    # Ambank (lowercase b)
+    "ambank":                           "Ambank",
+    "ambankberhad":                     "Ambank",
+    "ambankmberhad":                    "Ambank",
+    "ammbankberhad":                    "Ambank",
+    "ambankmalaysiaberhad":             "Ambank",
+    "ambankislamic":                    "Ambank Islamic",
+    "ambankislamicberhad":              "Ambank Islamic",
+    "ambankislamicmalaysiaberhad":      "Ambank Islamic",
 
     # HSBC
-    "hsbcbank":                     "HSBC Bank",
-    "hsbcbankberhad":               "HSBC Bank",
-    "hsbcbankmalaysiaberhad":       "HSBC Bank",
-    "hsbcamanah":                   "HSBC Amanah",
-    "hsbcamanahmalaysiaberhad":     "HSBC Amanah",
+    "hsbcbank":                         "HSBC Bank",
+    "hsbcbankberhad":                   "HSBC Bank",
+    "hsbcbankmalaysiaberhad":           "HSBC Bank",
+    "hsbcamanah":                       "HSBC Amanah",
+    "hsbcamanahmalaysiaberhad":         "HSBC Amanah",
 
-    # OCBC
-    "ocbc":                         "OCBC Bank",
-    "ocbcbank":                     "OCBC Bank",
-    "ocbcbankberhad":               "OCBC Bank",
-    "ocbcbankmalaysiaberhad":       "OCBC Bank",
-    "ocbcalamin":                   "OCBC Al-Amin",
-    "ocbcalaminbankberhad":         "OCBC Al-Amin",
-
-    # Public Bank (sender — should not normally appear but kept for completeness)
-    "publicbankberhad":             "Public Bank Berhad",
-    "publicbank":                   "Public Bank Berhad",
-    "publicislamicbank":            "Public Islamic Bank",
-    "publicislamicbankberhad":      "Public Islamic Bank",
+    # OCBC — "OCBC Bank" → "OCBC" (no "Bank" in canonical form)
+    "ocbc":                             "OCBC",
+    "ocbcbank":                         "OCBC",
+    "ocbcbankberhad":                   "OCBC",
+    "ocbcbankmalaysiaberhad":           "OCBC",
+    "ocbcalamin":                       "OCBC Al-Amin",
+    "ocbcalaminbankberhad":             "OCBC Al-Amin",
+    "ocbcalaminberhad":                 "OCBC Al-Amin",
 
     # Kuwait Finance House
-    "kuwaitfinancehouse":           "Kuwait Finance House",
-    "kuwaitfinancehouseberhad":     "Kuwait Finance House",
-    "kfh":                          "Kuwait Finance House",
+    "kuwaitfinancehouse":               "Kuwait Finance House",
+    "kuwaitfinancehouseberhad":         "Kuwait Finance House",
+    "kfh":                              "Kuwait Finance House",
+    "kfhmalaysiaberhad":                "Kuwait Finance House",
 
     # Standard Chartered
-    "standardcharteredbank":                "Standard Chartered Bank",
-    "standardchartered":                    "Standard Chartered Bank",
-    "standardchartereredsaadiq":            "Standard Chartered Saadiq",
-    "standardchartteredsaadiq":             "Standard Chartered Saadiq",
-    "standardchartteredsaadiqberhad":       "Standard Chartered Saadiq",
-    "standardchartteredsaadiqislamicberhad":"Standard Chartered Saadiq",
-    "standardchartteredsaadiqislamic":      "Standard Chartered Saadiq",
-    "standardchartteredsaadiqmalaysiaberhad":"Standard Chartered Saadiq",
+    "standardcharteredbank":                    "Standard Chartered Bank",
+    "standardchartered":                        "Standard Chartered Bank",
+    "standardcharteredbankmalaysiaberhad":      "Standard Chartered Bank",
+    "standardchartteredsaadiq":                 "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqberhad":           "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqislamic":          "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqislamicberhad":    "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqmalaysiaberhad":   "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqislamicmalaysia":  "Standard Chartered Saadiq Islamic",
+    "standardchartteredsaadiqislamicmalaysiaberhad": "Standard Chartered Saadiq Islamic",
 
     # Bank Islam / Muamalat
-    "bankislam":                    "Bank Islam",
-    "bankislammalaysiaberhad":      "Bank Islam",
-    "bankmuamalat":                 "Bank Muamalat",
-    "bankmuamalatmalaysiaberhad":   "Bank Muamalat",
+    "bankislam":                        "Bank Islam",
+    "bankislammalaysiaberhad":          "Bank Islam",
+    "bankmuamalat":                     "Bank Muamalat",
+    "bankmuamalatmalaysiaberhad":       "Bank Muamalat",
 
-    # Affin
-    "affinbank":                    "Affin Bank",
-    "affinbankberhad":              "Affin Bank",
-    "affinislamicbank":             "Affin Islamic Bank",
-    "affinislamicbankberhad":       "Affin Islamic Bank",
+    # Affin — no Islamic entry in approved list; both map to "Affin Bank"
+    "affinbank":                        "Affin Bank",
+    "affinbankberhad":                  "Affin Bank",
+    "affinislamicbank":                 "Affin Bank",
+    "affinislamicbankberhad":           "Affin Bank",
 
-    # Agro / Rakyat
-    "agrobank":                     "Agro Bank",
-    "bankpertanianberhad":          "Agro Bank",
-    "bankrakyat":                   "Bank Rakyat",
-    "bankrakyatberhad":             "Bank Rakyat",
-    "bankkeperjaanrakyat":          "Bank Rakyat",
+    # Bank Rakyat
+    "bankrakyat":                       "Bank Rakyat",
+    "bankrakyatberhad":                 "Bank Rakyat",
+    "bankkeperjaanrakyat":              "Bank Rakyat",
+    "bankkeperjaanrakyatberhad":        "Bank Rakyat",
 
-    # UOB
-    "uob":                          "UOB Bank",
-    "uobbank":                      "UOB Bank",
-    "unitedoberseabank":            "UOB Bank",
-    "unitedoberseabankberhad":      "UOB Bank",
+    # UOB — canonical is "UOB" only, no "Bank"
+    "uob":                              "UOB",
+    "uobbank":                          "UOB",
+    "uobbankberhad":                    "UOB",
+    "unitedoverseasbank":               "UOB",
+    "unitedoverseasbankberhad":         "UOB",
+    "unitedoverseasbankmalaysiaberhad": "UOB",
 
-    # Citibank
-    "citibank":                     "Citibank",
-    "citibankberhad":               "Citibank",
-    "citibankmalaysiaberhad":       "Citibank",
+    # MBSB
+    "mbsb":                             "MBSB Bank",
+    "mbsbbank":                         "MBSB Bank",
+    "mbsbbankberhad":                   "MBSB Bank",
+    "malaysiabuildingsociety":          "MBSB Bank",
+    "malaysiabuildingsocietyberhad":    "MBSB Bank",
+
+    # Bank of China
+    "bankofchina":                      "Bank of China",
+    "bankofchinaberhad":                "Bank of China",
+    "bankofchinamalaysiaberhad":        "Bank of China",
+
+    # Al Rajhi Bank
+    "alrajhibank":                      "Al Rajhi Bank",
+    "alrajhibank":                      "Al Rajhi Bank",
+    "alrajhibankberhad":                "Al Rajhi Bank",
+    "alrajhibankmaylaysiaberhad":       "Al Rajhi Bank",
+    "alrajhibankmalaysiaberhad":        "Al Rajhi Bank",
+
+    # Public Bank (sender — should not appear as answer, kept for completeness)
+    "publicbankberhad":                 "Public Bank Berhad",
+    "publicbank":                       "Public Bank Berhad",
+    "publicislamicbank":                "Public Islamic Bank",
+    "publicislamicbankberhad":          "Public Islamic Bank",
 }
 
 
