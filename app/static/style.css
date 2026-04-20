@@ -26,7 +26,8 @@ html, body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background: var(--pb-bg);
     color: var(--pb-text);
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -73,15 +74,16 @@ html, body {
     color: rgba(255,255,255,0.6);
 }
 
-/* PAGE WRAPPER */
+/* PAGE WRAPPER — fills remaining height after topbar + footer */
 .page-wrapper {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-/* TABS */
+/* TAB BAR */
 .tab-bar {
     display: flex;
     border-bottom: 2px solid var(--pb-border);
@@ -110,19 +112,50 @@ html, body {
     border-bottom-color: var(--pb-red);
 }
 
+/* TAB PANEL — each panel fills available space */
 .tab-panel {
     flex: 1;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.tab-panel[style*="display:flex"],
+.tab-panel:not([style*="display:none"]) {
+    display: flex;
+}
+
+/* V1 tab — normal scroll */
+#panelExtract {
+    overflow-y: auto;
+}
+
+/* V2 Batch tab — no overflow on the panel itself; children handle it */
+#panelBatch {
+    overflow: hidden;
+}
+
+/* Statement tab — normal scroll */
+#panelSummarise {
+    overflow-y: auto;
 }
 
 /* PAGE LAYOUT */
 .page-container {
     flex: 1;
+    min-height: 0;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding: 48px;
     gap: 32px;
+}
+
+/* For V1 and Summary — standard scroll container */
+#panelExtract .page-container,
+#panelSummarise .page-container {
+    height: auto;
+    overflow: visible;
 }
 
 /* UPLOAD PANEL */
@@ -392,7 +425,7 @@ html, body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* RESULTS PANEL */
+/* RESULTS PANEL (V1) */
 .results-panel {
     width: 0;
     overflow: hidden;
@@ -810,46 +843,63 @@ html, body {
 }
 
 /* =========================================================
-   BATCH TAB LAYOUT
+   BATCH TAB LAYOUT — THE KEY FIX
+   The entire batch tab must form a proper scroll chain:
+   #panelBatch (flex column, overflow:hidden, full height)
+     └─ .page-container (flex row, flex:1, min-height:0, overflow:hidden)
+          ├─ .upload-panel (left column, overflow-y:auto, fixed max-width)
+          └─ #batchResultsPanel (right column, flex:1, overflow-y:auto)
    ========================================================= */
 
 #panelBatch {
+    /* Fill the tab area; do NOT scroll here */
     display: flex;
     flex-direction: column;
-    height: 100%;
     overflow: hidden;
 }
 
 #panelBatch .page-container {
+    /* Flex row — fills all height below tab-bar */
     flex: 1;
+    min-height: 0;             /* critical: allows children to shrink */
+    display: flex;
+    flex-direction: row;
     align-items: flex-start;
     justify-content: center;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    padding: 48px;
     gap: 32px;
-    height: 100%;
+    padding: 32px 48px;
+    overflow: hidden;          /* children scroll individually */
 }
 
+/* Left column: upload controls — scrollable if queue grows tall */
 #panelBatch .upload-panel {
-    width: 100%;
-    max-width: 680px;
+    /* Fixed width column; scrolls its own content */
+    width: 340px;
+    min-width: 280px;
+    max-width: 340px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    height: 100%;
     overflow-y: auto;
-    padding-bottom: 20px;
-    transition: max-width 0.4s ease;
+    overflow-x: hidden;
+    padding-bottom: 16px;
+    transition: width 0.4s ease, max-width 0.4s ease, min-width 0.4s ease;
 }
 
-#panelBatch .page-container.has-results .upload-panel {
-    max-width: 340px;
-    min-width: 280px;
+/* Before results appear: expand upload panel to centre */
+#panelBatch .page-container:not(.has-results) .upload-panel {
+    width: 680px;
+    min-width: 400px;
+    max-width: 680px;
+    height: auto;              /* natural height before results */
+    overflow-y: visible;
 }
 
+/* Compact header once results are showing */
 #panelBatch .page-container.has-results .panel-header {
-    padding: 14px 16px;
+    padding: 14px 18px;
 }
 
 #panelBatch .page-container.has-results .page-title {
@@ -903,16 +953,54 @@ html, body {
     font-size: 12px;
 }
 
+/* Right column: batch results — THE scrollable area */
 #batchResultsPanel {
     flex: 1;
     min-width: 0;
-    max-width: 760px;
+    min-height: 0;             /* critical */
     display: flex;
     flex-direction: column;
     gap: 12px;
-    overflow-y: auto;
+    overflow-y: auto;          /* THIS is where scrolling happens */
+    overflow-x: hidden;
     padding-bottom: 24px;
-    height: 100%;
+    /* Hidden until batch starts */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* Show results panel once processing starts */
+#panelBatch .page-container.has-results #batchResultsPanel {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Nice scrollbar for the results panel */
+#batchResultsPanel::-webkit-scrollbar {
+    width: 6px;
+}
+#batchResultsPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+#batchResultsPanel::-webkit-scrollbar-thumb {
+    background: var(--pb-border-dark);
+    border-radius: 3px;
+}
+#batchResultsPanel::-webkit-scrollbar-thumb:hover {
+    background: var(--pb-muted);
+}
+
+/* Also style the upload panel scrollbar when it needs to scroll */
+#panelBatch .upload-panel::-webkit-scrollbar {
+    width: 4px;
+}
+#panelBatch .upload-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+#panelBatch .upload-panel::-webkit-scrollbar-thumb {
+    background: var(--pb-border);
+    border-radius: 2px;
 }
 
 /* =========================================================
@@ -924,10 +1012,12 @@ html, body {
     .topbar-title, .topbar-right { display: none; }
     .tab-bar { padding: 0 24px; }
 
-    .page-container {
+    /* V1 and Summary: stack vertically */
+    #panelExtract .page-container,
+    #panelSummarise .page-container {
         flex-direction: column;
         align-items: center;
-        padding: 32px 24px;
+        padding: 24px 16px;
     }
 
     .upload-panel,
@@ -945,7 +1035,11 @@ html, body {
 
     .page-footer { padding: 0 24px; }
 
-    #panelBatch { height: auto; overflow: auto; }
+    /* Batch: revert to vertical scroll on mobile */
+    #panelBatch {
+        overflow-y: auto;
+        height: auto;
+    }
 
     #panelBatch .page-container {
         flex-direction: column;
@@ -953,18 +1047,24 @@ html, body {
         height: auto;
         overflow: visible;
         padding: 16px;
+        min-height: 0;
     }
 
-    #panelBatch .upload-panel {
+    #panelBatch .upload-panel,
+    #panelBatch .page-container:not(.has-results) .upload-panel {
+        width: 100% !important;
+        min-width: 0 !important;
         max-width: 100% !important;
-        width: 100%;
-        overflow: visible;
+        height: auto;
+        overflow-y: visible;
     }
 
     #batchResultsPanel {
         height: auto;
-        max-height: none;
-        overflow: visible;
+        min-height: 300px;
+        overflow-y: visible;
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .batch-fields-row { grid-template-columns: 1fr; }

@@ -6,18 +6,52 @@
     <title>{{ app_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
     <style>
-        /* Give the page-wrapper and tab panels correct height chain */
-        html, body { height: 100%; overflow: hidden; }
-        .page-wrapper { overflow: hidden; }
+        /*
+         * Height chain for the full-page layout:
+         *   html → body → .page-wrapper → .tab-panel → (panel-specific)
+         * Everything must participate in flex so children can use flex:1 / min-height:0.
+         */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
 
-        /* V1 tab: normal scroll */
-        #panelExtract { overflow: auto; display: flex; flex-direction: column; }
+        /* page-wrapper fills the gap between topbar and footer */
+        .page-wrapper {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-        /* V2 tab: no scroll on the panel itself — children handle it */
-        #panelBatch { overflow: hidden; height: 100%; }
+        /*
+         * Tab panels: hidden by default.
+         * The active one is shown as flex so its children can use flex-based sizing.
+         * JS switches display via .style.display — we override only hidden ones here.
+         */
+        .tab-panel { display: none; }
 
-        /* Statement tab: normal scroll */
-        #panelSummarise { overflow: auto; }
+        /* V1: simple scrollable column */
+        #panelExtract {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        /* V2 Batch: fixed-height, children scroll independently */
+        #panelBatch {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Statement: simple scrollable column */
+        #panelSummarise {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body data-max-upload-mb="{{ max_upload_mb }}">
@@ -39,7 +73,7 @@
                 Customer Details V1
             </button>
             <button class="tab-btn" id="tabBatch" onclick="switchTab('batch')">
-                Customer Details V2 
+                Customer Details V2
             </button>
             <!-- Statement Summary tab hidden until feature is ready
             <button class="tab-btn" id="tabSummarise" onclick="switchTab('summarise')">
@@ -48,8 +82,10 @@
             -->
         </div>
 
-        <!-- TAB: CUSTOMER DETAILS V1 -->
-        <div class="tab-panel" id="panelExtract">
+        <!-- =====================================================
+             TAB: CUSTOMER DETAILS V1
+             ===================================================== -->
+        <div class="tab-panel" id="panelExtract" style="display:flex; flex-direction:column;">
             <div class="page-container" id="pageContainerExtract">
 
                 <section class="upload-panel">
@@ -160,11 +196,16 @@
             </div>
         </div>
 
-        <!-- TAB: CUSTOMER DETAILS V2 (BATCH) -->
+        <!-- =====================================================
+             TAB: CUSTOMER DETAILS V2 (BATCH)
+             Layout: full-height flex row.
+               Left  → upload controls (fixed width, scrollable)
+               Right → results list    (flex-1, scrollable)
+             ===================================================== -->
         <div class="tab-panel" id="panelBatch" style="display:none;">
             <div class="page-container" id="pageContainerBatch">
 
-                <!-- Left: compact upload column -->
+                <!-- Left: upload column -->
                 <section class="upload-panel">
                     <div class="panel-header">
                         <div class="hero-badge">Batch Extraction</div>
@@ -187,7 +228,7 @@
                             <div class="drop-hint">Supports .txt, .pdf, and .md — max {{ max_upload_mb }} MB each</div>
                         </div>
 
-                        <!-- File queue list -->
+                        <!-- File queue list — scrollable within the upload panel -->
                         <div id="batchFileList" style="display:none; flex-direction:column; gap:8px;"></div>
 
                         <div id="errorBannerBatch" class="banner banner-error">
@@ -223,13 +264,15 @@
                     </div>
                 </section>
 
-                <!-- Right: results panel — fills remaining width, scrolls independently -->
+                <!-- Right: scrollable results stream -->
                 <section id="batchResultsPanel"></section>
 
             </div>
         </div>
 
-        <!-- TAB: STATEMENT SUMMARY (hidden until feature is ready) -->
+        <!-- =====================================================
+             TAB: STATEMENT SUMMARY (hidden until feature is ready)
+             ===================================================== -->
         <div class="tab-panel" id="panelSummarise" style="display:none;">
             <div class="page-container" id="pageContainerSummarise">
 

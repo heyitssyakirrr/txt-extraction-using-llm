@@ -6,19 +6,34 @@ document.addEventListener("DOMContentLoaded", function () {
     // TAB SWITCHING
     // -------------------------------------------------------------------------
     window.switchTab = function (tab) {
-        var panelExtract   = document.getElementById("panelExtract");
-        var panelSummarise = document.getElementById("panelSummarise");
-        var panelBatch     = document.getElementById("panelBatch");
-        var tabExtract     = document.getElementById("tabExtract");
-        var tabSummarise   = document.getElementById("tabSummarise");
-        var tabBatch       = document.getElementById("tabBatch");
+        var panels = {
+            extract:   document.getElementById("panelExtract"),
+            summarise: document.getElementById("panelSummarise"),
+            batch:     document.getElementById("panelBatch"),
+        };
+        var tabs = {
+            extract:   document.getElementById("tabExtract"),
+            summarise: document.getElementById("tabSummarise"),
+            batch:     document.getElementById("tabBatch"),
+        };
 
-        if (panelExtract)   panelExtract.style.display   = tab === "extract"   ? "flex" : "none";
-        if (panelSummarise) panelSummarise.style.display = tab === "summarise" ? "flex" : "none";
-        if (panelBatch)     panelBatch.style.display     = tab === "batch"     ? "flex" : "none";
-        if (tabExtract)     tabExtract.classList.toggle("active",   tab === "extract");
-        if (tabSummarise)   tabSummarise.classList.toggle("active", tab === "summarise");
-        if (tabBatch)       tabBatch.classList.toggle("active",     tab === "batch");
+        Object.keys(panels).forEach(function (key) {
+            var panel = panels[key];
+            if (!panel) return;
+            if (key === tab) {
+                // Show: use flex so height chain works correctly for all panels
+                panel.style.display = "flex";
+                panel.style.flexDirection = "column";
+            } else {
+                panel.style.display = "none";
+            }
+        });
+
+        Object.keys(tabs).forEach(function (key) {
+            var btn = tabs[key];
+            if (!btn) return;
+            btn.classList.toggle("active", key === tab);
+        });
     };
 
     // -------------------------------------------------------------------------
@@ -167,11 +182,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // SHARED FIELD HELPER
     // -------------------------------------------------------------------------
     function getExtractedValue(result, key) {
-        // Primary source: result.data (the ExtractionResult fields)
         if (result && result.data && result.data[key] != null && result.data[key] !== "") {
             return result.data[key];
         }
-        // Fallback: result.comparison[key].extracted (FieldComparisonDetail)
         if (result && result.comparison && result.comparison[key] &&
             result.comparison[key].extracted != null && result.comparison[key].extracted !== "") {
             return result.comparison[key].extracted;
@@ -212,7 +225,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var html = '<span class="section-label">Verification</span>';
 
-        // Overall badge
         if (!comparison.csv_row_found) {
             html += '<div class="cmp-badge cmp-badge--warn">&#9888; File not found in reference data (key: ' +
                 escHtml(comparison.filename_key) + ')</div>';
@@ -222,7 +234,6 @@ document.addEventListener("DOMContentLoaded", function () {
             html += '<div class="cmp-badge cmp-badge--fail">&#10007; Mismatch detected</div>';
         }
 
-        // Always render the table — show extracted vs expected for all fields
         var fields = ["bank_name", "fi_num", "master_account_number", "sub_account_number"];
         html += '<div class="cmp-table-wrap"><table class="cmp-table"><thead><tr>' +
             '<th>Field</th><th>Extracted</th><th>Expected</th><th>Status</th>' +
@@ -262,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // -------------------------------------------------------------------------
-    // CUSTOMER DETAIL EXTRACTION WIDGET
+    // CUSTOMER DETAIL EXTRACTION WIDGET (V1)
     // -------------------------------------------------------------------------
     var resName      = document.getElementById("resName");
     var resMasterAcc = document.getElementById("resMasterAcc");
@@ -290,7 +301,6 @@ document.addEventListener("DOMContentLoaded", function () {
         submitLabel:     "Extract Data",
 
         onResults: function (result) {
-            // Debug: log raw API response to browser console for diagnosis
             console.log("[Extraction] API response:", JSON.stringify(result, null, 2));
 
             var extractedValues = {
@@ -311,12 +321,9 @@ document.addEventListener("DOMContentLoaded", function () {
             setField(resFiNum,     extractedValues.fi_num);
             setField(resBankName,  extractedValues.bank_name);
 
-            // Render comparison panel first
             renderComparison(result.comparison || null);
 
-            // collect ALL warnings before showing
             var warnings = [];
-
             var missing = [];
             if (!extractedValues.name)                  missing.push("customer name");
             if (!extractedValues.master_account_number) missing.push("master account number");
@@ -362,86 +369,85 @@ document.addEventListener("DOMContentLoaded", function () {
     var resMonthlyTable   = document.getElementById("resMonthlyTable");
     var resDailyTable     = document.getElementById("resDailyTable");
 
-    var summariseWidget = createUploadWidget({
-        dropZoneId:      "dropZoneSummarise",
-        fileInputId:     "fileInputSummarise",
-        filePillId:      "filePillSummarise",
-        fileNameId:      "fileNameSummarise",
-        clearFileBtnId:  "clearFileBtnSummarise",
-        submitBtnId:     "submitBtnSummarise",
-        submitSpinnerId: "submitSpinnerSummarise",
-        submitLabelId:   "submitLabelSummarise",
-        errorBannerId:   "errorBannerSummarise",
-        errorMessageId:  "errorMessageSummarise",
-        warnBannerId:    "warnBannerSummarise",
-        warnMessageId:   "warnMessageSummarise",
-        resetBtnId:      "resetBtnSummarise",
-        pageContainerId: "pageContainerSummarise",
-        extractUrl:      "/summarise/from-file",
-        submitLabel:     "Extract Summary",
+    if (resOverallMin) {
+        var summariseWidget = createUploadWidget({
+            dropZoneId:      "dropZoneSummarise",
+            fileInputId:     "fileInputSummarise",
+            filePillId:      "filePillSummarise",
+            fileNameId:      "fileNameSummarise",
+            clearFileBtnId:  "clearFileBtnSummarise",
+            submitBtnId:     "submitBtnSummarise",
+            submitSpinnerId: "submitSpinnerSummarise",
+            submitLabelId:   "submitLabelSummarise",
+            errorBannerId:   "errorBannerSummarise",
+            errorMessageId:  "errorMessageSummarise",
+            warnBannerId:    "warnBannerSummarise",
+            warnMessageId:   "warnMessageSummarise",
+            resetBtnId:      "resetBtnSummarise",
+            pageContainerId: "pageContainerSummarise",
+            extractUrl:      "/summarise/from-file",
+            submitLabel:     "Extract Summary",
 
-        onResults: function (result) {
-            var data = result.data || {};
+            onResults: function (result) {
+                var data = result.data || {};
 
-            // Overall stats
-            setField(resOverallMin,     data.overall_min_balance);
-            setField(resOverallMax,     data.overall_max_balance);
-            setField(resOverallClosing, data.overall_closing_balance);
+                setField(resOverallMin,     data.overall_min_balance);
+                setField(resOverallMax,     data.overall_max_balance);
+                setField(resOverallClosing, data.overall_closing_balance);
 
-            // Monthly breakdown
-            var monthly = data.monthly_summaries || [];
-            if (monthly.length) {
-                var mHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Month</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
-                    "</tr></thead><tbody>";
-                for (var i = 0; i < monthly.length; i++) {
-                    var m = monthly[i];
-                    mHtml += "<tr>" +
-                        "<td>" + (m.month           || "\u2014") + "</td>" +
-                        "<td>" + (m.min_balance      || "\u2014") + "</td>" +
-                        "<td>" + (m.max_balance      || "\u2014") + "</td>" +
-                        "<td>" + (m.closing_balance  || "\u2014") + "</td>" +
-                        "</tr>";
+                var monthly = data.monthly_summaries || [];
+                if (monthly.length) {
+                    var mHtml = "<table class='summary-table'><thead><tr>" +
+                        "<th>Month</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
+                        "</tr></thead><tbody>";
+                    for (var i = 0; i < monthly.length; i++) {
+                        var m = monthly[i];
+                        mHtml += "<tr>" +
+                            "<td>" + (m.month           || "\u2014") + "</td>" +
+                            "<td>" + (m.min_balance      || "\u2014") + "</td>" +
+                            "<td>" + (m.max_balance      || "\u2014") + "</td>" +
+                            "<td>" + (m.closing_balance  || "\u2014") + "</td>" +
+                            "</tr>";
+                    }
+                    mHtml += "</tbody></table>";
+                    resMonthlyTable.innerHTML = mHtml;
+                } else {
+                    resMonthlyTable.textContent = "No monthly data found.";
                 }
-                mHtml += "</tbody></table>";
-                resMonthlyTable.innerHTML = mHtml;
-            } else {
-                resMonthlyTable.textContent = "No monthly data found.";
-            }
 
-            // Daily breakdown
-            var daily = data.daily_summaries || [];
-            if (daily.length) {
-                var dHtml = "<table class='summary-table'><thead><tr>" +
-                    "<th>Date</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
-                    "</tr></thead><tbody>";
-                for (var j = 0; j < daily.length; j++) {
-                    var d = daily[j];
-                    dHtml += "<tr>" +
-                        "<td>" + (d.date            || "\u2014") + "</td>" +
-                        "<td>" + (d.min_balance      || "\u2014") + "</td>" +
-                        "<td>" + (d.max_balance      || "\u2014") + "</td>" +
-                        "<td>" + (d.closing_balance  || "\u2014") + "</td>" +
-                        "</tr>";
+                var daily = data.daily_summaries || [];
+                if (daily.length) {
+                    var dHtml = "<table class='summary-table'><thead><tr>" +
+                        "<th>Date</th><th>Min Balance</th><th>Max Balance</th><th>Closing Balance</th>" +
+                        "</tr></thead><tbody>";
+                    for (var j = 0; j < daily.length; j++) {
+                        var d = daily[j];
+                        dHtml += "<tr>" +
+                            "<td>" + (d.date            || "\u2014") + "</td>" +
+                            "<td>" + (d.min_balance      || "\u2014") + "</td>" +
+                            "<td>" + (d.max_balance      || "\u2014") + "</td>" +
+                            "<td>" + (d.closing_balance  || "\u2014") + "</td>" +
+                            "</tr>";
+                    }
+                    dHtml += "</tbody></table>";
+                    resDailyTable.innerHTML = dHtml;
+                } else {
+                    resDailyTable.textContent = "No daily data found.";
                 }
-                dHtml += "</tbody></table>";
-                resDailyTable.innerHTML = dHtml;
-            } else {
-                resDailyTable.textContent = "No daily data found.";
-            }
-        },
+            },
 
-        onReset: function () {
-            setField(resOverallMin,     null);
-            setField(resOverallMax,     null);
-            setField(resOverallClosing, null);
-            resMonthlyTable.innerHTML = "\u2014";
-            resDailyTable.innerHTML   = "\u2014";
-        }
-    });
+            onReset: function () {
+                setField(resOverallMin,     null);
+                setField(resOverallMax,     null);
+                setField(resOverallClosing, null);
+                resMonthlyTable.innerHTML = "\u2014";
+                resDailyTable.innerHTML   = "\u2014";
+            }
+        });
+    }
 
     // -------------------------------------------------------------------------
-    // BATCH EXTRACTION WIDGET
+    // BATCH EXTRACTION WIDGET (V2)
     // -------------------------------------------------------------------------
     (function () {
         var maxMb         = maxUploadMb;
@@ -458,10 +464,10 @@ document.addEventListener("DOMContentLoaded", function () {
         var progressFill  = document.getElementById("batchProgressFill");
         var progressText  = document.getElementById("batchProgressText");
         var resultsPanel  = document.getElementById("batchResultsPanel");
+        var pageContainer = document.getElementById("pageContainerBatch");
 
         if (!dropZone) return;
 
-        // Array of {file, id, pillEl, statusEl}
         var queue = [];
         var isRunning = false;
         var idCounter = 0;
@@ -549,11 +555,11 @@ document.addEventListener("DOMContentLoaded", function () {
             submitBtn.style.display = "none";
             resetBtn.style.display = "none";
             spinner.classList.add("visible");
-            submitLabel.textContent = "Processing…";
+            submitLabel.textContent = "Processing\u2026";
             progressBar.style.display = "block";
             hideError();
 
-            document.getElementById("pageContainerBatch").classList.add("has-results");
+            pageContainer.classList.add("has-results");
 
             var removes = fileListEl.querySelectorAll(".pill-remove");
             for (var i = 0; i < removes.length; i++) removes[i].disabled = true;
@@ -577,12 +583,17 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             var item = queue[index];
-            setPillStatus(item.statusEl, "running", "Processing…");
+            setPillStatus(item.statusEl, "running", "Processing\u2026");
 
             var card = makeResultCard(item.file.name);
             item.resultCardEl = card.el;
             resultsPanel.appendChild(card.el);
-            card.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+            // Scroll the results panel to show the new card
+            // Use a tiny delay so the DOM has painted
+            setTimeout(function () {
+                card.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }, 50);
 
             var formData = new FormData();
             formData.append("file", item.file);
@@ -645,7 +656,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             var badge = document.createElement("span");
             badge.className = "batch-result-badge batch-result-badge--processing";
-            badge.textContent = "Processing…";
+            badge.textContent = "Processing\u2026";
 
             var chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             chevron.setAttribute("viewBox", "0 0 24 24");
@@ -670,13 +681,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
             var bodyContent = document.createElement("div");
             bodyContent.className = "batch-result-body-content";
-            bodyContent.innerHTML = '<span style="font-size:13px;color:var(--pb-muted);font-style:italic;">Waiting for LLM response…</span>';
+            bodyContent.innerHTML = '<span style="font-size:13px;color:var(--pb-muted);font-style:italic;">Waiting for LLM response\u2026</span>';
 
             bodyInner.appendChild(bodyContent);
             body.appendChild(bodyInner);
             el.appendChild(header);
             el.appendChild(body);
 
+            // Toggle collapse on header click
             header.addEventListener("click", function () {
                 var isOpen = body.classList.contains("open");
                 body.classList.toggle("open", !isOpen);
@@ -694,7 +706,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            var badgeLabels = { pass: "✓ All Match", fail: "✗ Mismatch", warn: "⚠ No Reference" };
+            var badgeLabels = { pass: "\u2713 All Match", fail: "\u2717 Mismatch", warn: "\u26A0 No Reference" };
             var badgeClass  = { pass: "pass", fail: "fail", warn: "warn" };
             card.badge.className = "batch-result-badge batch-result-badge--" + (badgeClass[statusStr] || "warn");
             card.badge.textContent = badgeLabels[statusStr] || "Done";
@@ -765,8 +777,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 html += '<tr class="' + rowClass + '">' +
                     '<td class="cmp-field-name">' + LABELS[key] + '</td>' +
-                    '<td>' + escHtml(detail.extracted || "—") + '</td>' +
-                    '<td>' + escHtml(detail.expected  || "—") + '</td>' +
+                    '<td>' + escHtml(detail.extracted || "\u2014") + '</td>' +
+                    '<td>' + escHtml(detail.expected  || "\u2014") + '</td>' +
                     '<td class="cmp-status">' + statusIcon + '</td></tr>';
             });
 
@@ -788,7 +800,7 @@ document.addEventListener("DOMContentLoaded", function () {
             submitBtn.disabled = true;
             submitBtn.style.display = "";
             resetBtn.style.display = "none";
-            document.getElementById("pageContainerBatch").classList.remove("has-results");
+            pageContainer.classList.remove("has-results");
             hideError();
         });
 
@@ -827,8 +839,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         function exportToCsv() {
-            // One row per field per file
-            // Columns: Filename, Field, Extracted, Expected, Match
             var FIELDS = [
                 { key: "bank_name",             label: "Bank Name" },
                 { key: "fi_num",                label: "FI Code" },
@@ -837,15 +847,12 @@ document.addEventListener("DOMContentLoaded", function () {
             ];
 
             var rows = [];
-
-            // Header
             rows.push(csvRow(["Filename", "Field", "Extracted", "Expected", "Match"]));
 
             queue.forEach(function (item) {
                 var filename = item.file.name;
 
                 if (item.extractError || !item.extractResult) {
-                    // File errored — emit one row per field with ERROR status
                     FIELDS.forEach(function (f) {
                         rows.push(csvRow([filename, f.label, "ERROR", "", "FAIL"]));
                     });
@@ -868,7 +875,6 @@ document.addEventListener("DOMContentLoaded", function () {
                             match = cmp[f.key].match ? "PASS" : "FAIL";
                         }
                     } else {
-                        // Fallback: pull from extracted data, no reference available
                         var d = item.extractResult.data || {};
                         extracted = d[f.key] != null ? d[f.key] : "";
                         match = "NO REFERENCE";
@@ -897,7 +903,6 @@ document.addEventListener("DOMContentLoaded", function () {
             URL.revokeObjectURL(url);
         }
 
-        // Wrap a single CSV row — quote fields that contain commas, quotes, or newlines
         function csvRow(fields) {
             return fields.map(function (v) {
                 var s = String(v == null ? "" : v);
