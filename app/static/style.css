@@ -810,109 +810,113 @@ html, body {
 }
 
 /* =========================================================
-   BATCH TAB LAYOUT — full-height two-column
+   BATCH TAB LAYOUT
    ========================================================= */
 
 #panelBatch {
     display: flex;
     flex-direction: column;
-    /* fill the tab-panel height (tab-panel is flex:1 + overflow:auto on parent,
-       but we want internal scroll control, so override here) */
     height: 100%;
     overflow: hidden;
 }
 
+/* Before any files are submitted: centered, same width as V1 */
 #panelBatch .page-container {
     flex: 1;
-    align-items: stretch;
+    align-items: flex-start;
+    justify-content: center;
     flex-wrap: nowrap;
     overflow: hidden;
-    padding: 20px 24px 0 24px;
-    gap: 20px;
+    padding: 48px;
+    gap: 32px;
     height: 100%;
-    justify-content: flex-start;
 }
 
-/* ---- Left upload column: narrow, fixed, scrollable if needed ---- */
+/* Upload panel: full V1 width by default */
 #panelBatch .upload-panel {
-    max-width: 280px !important;
-    min-width: 240px;
-    width: 280px;
+    width: 100%;
+    max-width: 680px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 20px;
     overflow-y: auto;
     padding-bottom: 20px;
-    /* scrollbar only appears when content overflows */
+    transition: max-width 0.4s ease;
 }
 
-#panelBatch .panel-header {
+/* Once results are present, shrink the upload panel to a sidebar */
+#panelBatch .page-container.has-results .upload-panel {
+    max-width: 340px;
+    min-width: 280px;
+}
+
+/* Compact panel header after submit */
+#panelBatch .page-container.has-results .panel-header {
     padding: 14px 16px;
 }
 
-#panelBatch .page-title {
-    font-size: 17px;
+#panelBatch .page-container.has-results .page-title {
+    font-size: 18px;
     margin-bottom: 6px;
 }
 
-#panelBatch .page-subtitle {
+#panelBatch .page-container.has-results .page-subtitle {
     font-size: 12px;
     line-height: 1.5;
 }
 
-#panelBatch .upload-card {
+#panelBatch .page-container.has-results .upload-card {
     padding: 16px;
     gap: 12px;
 }
 
-#panelBatch .drop-zone {
+#panelBatch .page-container.has-results .drop-zone {
     min-height: 110px;
     padding: 18px 14px;
 }
 
-#panelBatch .drop-icon {
+#panelBatch .page-container.has-results .drop-icon {
     width: 36px;
     height: 36px;
     border-radius: 8px;
     margin-bottom: 10px;
 }
 
-#panelBatch .drop-icon svg {
+#panelBatch .page-container.has-results .drop-icon svg {
     width: 18px;
     height: 18px;
 }
 
-#panelBatch .drop-title {
+#panelBatch .page-container.has-results .drop-title {
     font-size: 13px;
     margin-bottom: 4px;
 }
 
-#panelBatch .drop-hint {
+#panelBatch .page-container.has-results .drop-hint {
     font-size: 11px;
 }
 
-#panelBatch .submit-btn {
+#panelBatch .page-container.has-results .submit-btn {
     height: 40px;
     font-size: 13px;
 }
 
-#panelBatch .reset-btn {
+#panelBatch .page-container.has-results .reset-btn {
     height: 36px;
     font-size: 12px;
 }
 
-/* ---- Right results column: fills rest, independently scrollable ---- */
+/* Right results panel */
 #batchResultsPanel {
     flex: 1;
     min-width: 0;
+    max-width: 760px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     overflow-y: auto;
     padding-bottom: 24px;
-    /* Remove the fixed max-height so it uses the parent's flex sizing */
-    max-height: none;
     height: 100%;
 }
 

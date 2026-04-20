@@ -6,9 +6,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // TAB SWITCHING
     // -------------------------------------------------------------------------
     window.switchTab = function (tab) {
-        document.getElementById("panelExtract").style.display   = tab === "extract"   ? "" : "none";
-        document.getElementById("panelSummarise").style.display = tab === "summarise" ? "" : "none";
-        document.getElementById("panelBatch").style.display     = tab === "batch"     ? "" : "none";
+        document.getElementById("panelExtract").style.display   = tab === "extract"   ? "flex" : "none";
+        document.getElementById("panelSummarise").style.display = tab === "summarise" ? "flex" : "none";
+        document.getElementById("panelBatch").style.display     = tab === "batch"     ? "flex" : "none";
         document.getElementById("tabExtract").classList.toggle("active",   tab === "extract");
         document.getElementById("tabSummarise").classList.toggle("active", tab === "summarise");
         document.getElementById("tabBatch").classList.toggle("active",     tab === "batch");
@@ -545,6 +545,9 @@ document.addEventListener("DOMContentLoaded", function () {
             progressBar.style.display = "block";
             hideError();
 
+            // Mark container so upload panel shrinks to sidebar
+            document.getElementById("pageContainerBatch").classList.add("has-results");
+
             // Disable all remove buttons
             var removes = fileListEl.querySelectorAll(".pill-remove");
             for (var i = 0; i < removes.length; i++) removes[i].disabled = true;
@@ -786,6 +789,7 @@ document.addEventListener("DOMContentLoaded", function () {
             submitBtn.disabled = true;
             submitBtn.style.display = "";
             resetBtn.style.display = "none";
+            document.getElementById("pageContainerBatch").classList.remove("has-results");
             hideError();
         });
 
