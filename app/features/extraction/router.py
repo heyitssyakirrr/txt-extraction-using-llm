@@ -16,7 +16,28 @@ docling_client = DoclingClient()
 
 async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
     prompt = build_extraction_prompt(original_text)
-    llm_result = await llm_client.extract_fields(prompt)
+    llm_result = await llm_client.extract_fields(
+        prompt,
+        stop=[
+            "} {",
+            "\n} {",
+            "\n}{",
+            "}\n{",
+            "}\r\n{",
+            "}\n\n",
+            "}\r\n\r\n",
+            "}\n ",
+            "} \n",
+            "}\n#",
+            "}\n`",
+            # ↓ these are the missing ones — closing brace preceded by newline (pretty-printed JSON)
+            "\n}\n ",      # ← your exact case: newline + } + newline + space + "To extract..."
+            "\n}\n#",      # ← newline + } + newline + markdown heading
+            "\n}\n`",      # ← newline + } + newline + code block
+            "\n}\n\n",     # ← newline + } + blank line
+            "\n}\r\n\r\n", # ← same, Windows line endings
+        ],
+    )
 
     extracted = ExtractionResult(
         name=llm_result.get("name"),

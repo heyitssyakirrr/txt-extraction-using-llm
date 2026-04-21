@@ -25,15 +25,28 @@ def _strip_trailing_commas(text: str) -> str:
 
 def _extract_last_json_object(text: str) -> str | None:
     """
-    Walk through the text character by character tracking brace depth.
-    Every time depth returns to 0 we've found a complete top-level {...} block.
-    We keep overwriting last_candidate so we always end up with the LAST one.
+    Walk through the text tracking brace depth, ignoring braces inside strings.
+    Returns the last complete top-level {...} block found.
     """
     depth = 0
     start = None
     last_candidate = None
+    in_string = False
+    escape_next = False
 
     for i, ch in enumerate(text):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue  # ignore { and } inside string values
+
         if ch == "{":
             if depth == 0:
                 start = i
@@ -49,12 +62,27 @@ def _extract_last_json_object(text: str) -> str | None:
 def _extract_json_objects(text: str) -> list[str]:
     """
     Return all complete top-level JSON object blocks in order.
+    Correctly ignores braces that appear inside string values.
     """
     depth = 0
     start = None
     candidates: list[str] = []
+    in_string = False
+    escape_next = False
 
     for i, ch in enumerate(text):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue  # ignore { and } inside string values
+
         if ch == "{":
             if depth == 0:
                 start = i
@@ -97,36 +125,35 @@ def _normalise_keys(d: dict) -> dict:
         normalised[clean_key] = value
     return normalised
 
+_EXPECTED_KEYS = {
+    "name",
+    "master_account_number",
+    "sub_account_number",
+    "address",
+    "fi_num",
+    "bank_name",
+}
+
+
+def _filter_expected_keys(d: dict) -> dict:
+    """Remove any keys the LLM hallucinated that aren't part of the schema."""
+    return {k: v for k, v in d.items() if k in _EXPECTED_KEYS}
+
 
 def _normalize_llm_output(response_json: dict) -> dict:
-    """
-    Parse the LLM response envelope and return the full parsed dict.
-    Both extraction and summary features call this, each picks the keys it needs.
-
-    Qwen2.5 often returns explanation text alongside the JSON, so we extract
-    the JSON block explicitly rather than parsing the entire text value.
-    Priority:
-      1. Last ```json ... ``` code block  — most complete, LLM's final answer
-      2. Last complete {...} block found by brace-depth tracking — handles adjacent JSON
-      3. Truncation repair — append missing closing brace and retry
-    """
-    logger.debug("Raw LLM response: %s", response_json)
-
     try:
         raw = response_json["text"].strip()
 
-        # Strategy 1: grab the LAST ```json ... ``` block
+        # Strategy 1
         code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if code_blocks:
             logger.debug("Parsing from code block (last of %d found)", len(code_blocks))
             parsed = json.loads(_strip_trailing_commas(code_blocks[-1]))
-            result = _normalise_keys(parsed)
+            result = _filter_expected_keys(_normalise_keys(parsed))  # ← add filter
             logger.debug("Parsed keys: %s", list(result.keys()))
             return result
 
-        # Strategy 2: brace-depth tracking over all objects.
-        # Qwen sometimes returns two adjacent JSON objects; we merge non-empty fields
-        # so we don't accidentally lose values like bank_name.
+        # Strategy 2
         json_blocks = _extract_json_objects(raw)
         if json_blocks:
             logger.debug("Parsing from brace-depth extraction (%d object(s))", len(json_blocks))
@@ -135,7 +162,7 @@ def _normalize_llm_output(response_json: dict) -> dict:
                 try:
                     parsed = json.loads(_strip_trailing_commas(block))
                     if isinstance(parsed, dict):
-                        parsed_dicts.append(_normalise_keys(parsed))
+                        parsed_dicts.append(_filter_expected_keys(_normalise_keys(parsed)))  # ← add filter
                 except json.JSONDecodeError as e:
                     logger.warning("Failed to parse JSON block: %s | block: %.200s", e, block)
                     continue
@@ -145,8 +172,7 @@ def _normalize_llm_output(response_json: dict) -> dict:
                 logger.debug("Merged keys from %d object(s): %s", len(parsed_dicts), list(merged.keys()))
                 return merged
 
-        # Strategy 3: Qwen stop-token truncation repair.
-        # Happens when stop token fires before the final closing brace is written.
+        # Strategy 3
         logger.debug("Attempting truncation repair")
         repaired = raw
         if not repaired.endswith("}"):
@@ -155,7 +181,7 @@ def _normalize_llm_output(response_json: dict) -> dict:
         if last_json:
             logger.debug("Parsing from repaired truncated JSON")
             parsed = json.loads(_strip_trailing_commas(last_json))
-            result = _normalise_keys(parsed)
+            result = _filter_expected_keys(_normalise_keys(parsed))  # ← add filter
             logger.debug("Repaired parsed keys: %s", list(result.keys()))
             return result
 
