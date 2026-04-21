@@ -332,7 +332,8 @@ STEP 8 — OUTPUT THE JSON.
 ================================================================================
 OUTPUT
 ================================================================================
-Return ONLY this JSON object with no other text or explanation:
+DO NOT EXPLAIN all the steps taken to extract the required field from the instructions above.
+JUST RETURN ONLY this JSON object with no other text in the response:
 {{
     "name": "<full customer name or null>",
     "master_account_number": "<master account number copied exactly as printed, or null>",
