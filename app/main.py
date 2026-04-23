@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import get_settings
+from app.features.extraction.batch_router import router as batch_router
 from app.features.extraction.router import router as extract_router
 from app.features.summary.router import router as summarise_router
 
@@ -27,7 +28,8 @@ templates = Jinja2Templates(directory="app/templates")
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting %s v%s", settings.app_name, settings.app_version)
-    logger.info("LLM endpoint: %s", settings.llm_url)
+    logger.info("LLM endpoint  : %s", settings.llm_url)
+    logger.info("Batch API     : POST /extract/batch (max %d files)", settings.max_files_per_batch)
     yield
     logger.info("Shutting down %s", settings.app_name)
 
@@ -40,7 +42,14 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Single-file UI endpoint (existing — unchanged)
 app.include_router(extract_router)
+
+# Batch API endpoint (new)
+app.include_router(batch_router)
+
+# Statement summary endpoint (existing — unchanged)
 app.include_router(summarise_router)
 
 

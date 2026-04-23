@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_model_name: str = ""
     helper_id: str = ""
-    # max_tokens: int = 2048
-
+    max_tokens: int = 2048
+    
     # ---------------------------------------------------------------------------
     # Docling OCR microservice configuration
     # ---------------------------------------------------------------------------
@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------------------
     allowed_upload_extensions: list[str] = [".txt", ".pdf"]
     max_upload_bytes: int = 10 * 1024 * 1024  # 10 MB
+
+    # Maximum number of files accepted in a single /extract/batch request.
+    # Clients should split larger jobs into multiple requests of this size.
+    max_files_per_batch: int = 50
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -63,6 +67,13 @@ class Settings(BaseSettings):
     def _positive_docling_timeout(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("docling_timeout_seconds must be positive")
+        return v
+
+    @field_validator("max_files_per_batch")
+    @classmethod
+    def _positive_max_files(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("max_files_per_batch must be positive")
         return v
 
     # ------------------------------------------------------------------
