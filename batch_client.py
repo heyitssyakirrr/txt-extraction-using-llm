@@ -78,7 +78,6 @@ def send_chunk(
         with httpx.stream(
             "POST",
             url,
-            headers={"X-API-Key": api_key},
             files=[("files", (name, fh, "application/octet-stream")) for name, fh in file_handles],
             timeout=timeout,
         ) as response:
