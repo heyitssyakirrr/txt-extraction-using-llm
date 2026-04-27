@@ -14,7 +14,7 @@ class DoclingClient:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    async def pdf_to_text(self, pdf_bytes: bytes, filename: str) -> str:
+    async def pdf_to_text(self, pdf_bytes: bytes, filename: str, timeout: float | None = None) -> str:
         """
         Send a PDF to the Docling OCR service and return the extracted text.
         The response comes back as markdown — we return it as-is for the LLM.
@@ -27,7 +27,8 @@ class DoclingClient:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=self.settings.docling_timeout_seconds) as client:
+            effective_timeout = timeout if timeout is not None else self.settings.docling_timeout_seconds
+            async with httpx.AsyncClient(timeout=effective_timeout) as client:
                 response = await client.post(
                     self.settings.docling_ocr_url,
                     files={"files": (filename, pdf_bytes, "application/pdf")},

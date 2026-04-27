@@ -204,7 +204,8 @@ class LLMClient:
             headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
         return headers
 
-    async def extract_fields(self, prompt: str, stop: list[str] | None = None) -> dict:
+    async def extract_fields(self, prompt: str, stop: list[str] | None = None, timeout: float | None = None) -> dict:
+
         payload = {
             "prompt": prompt,
             "model": self.settings.llm_model_name,
@@ -218,7 +219,8 @@ class LLMClient:
 
         try:
             t0 = time.time()
-            async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
+            effective_timeout = timeout if timeout is not None else self.settings.llm_timeout_seconds
+            async with httpx.AsyncClient(timeout=effective_timeout) as client:
                 response = await client.post(
                     self.settings.llm_url,
                     headers=self._build_headers(),

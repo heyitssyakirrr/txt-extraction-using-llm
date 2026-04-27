@@ -14,7 +14,7 @@ llm_client = LLMClient()
 docling_client = DoclingClient()
 
 
-async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
+async def _run_extraction(original_text: str, source: str, timeout: float | None = None) -> ExtractResponse:
     prompt = build_extraction_prompt(original_text)
     llm_result = await llm_client.extract_fields(
         prompt,
@@ -37,6 +37,7 @@ async def _run_extraction(original_text: str, source: str) -> ExtractResponse:
             "\n}\n\n",     # ← newline + } + blank line
             "\n}\r\n\r\n", # ← same, Windows line endings
         ],
+        timeout=timeout
     )
 
     extracted = ExtractionResult(
