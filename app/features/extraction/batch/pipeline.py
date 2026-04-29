@@ -1,24 +1,15 @@
 from __future__ import annotations
 
 """
-batch_router.py
----------------
-POST /extract/batch
-GET  /extract/batch/download/{year}/{month}/{day}/{filename}
+pipeline.py
+-----------
+Two-stage streaming pipeline for batch extraction.
 
-Accepts multiple PDF or TXT files in a single multipart/form-data request.
-Processes each file through a two-stage pipeline:
-  Stage 1: Docling OCR  (runs concurrently with Stage 2)
-  Stage 2: LLM extraction (runs concurrently with Stage 1)
+Stage 1 (_stage_ocr)    — sends each file to Docling OCR concurrently with Stage 2.
+Stage 2 (_stream_batch) — reads OCR results from the queue, calls the LLM, writes CSV.
 
-Both stages retry up to _MAX_ATTEMPTS times with _RETRY_WAIT seconds between
-attempts before writing an error row and moving on.
-
-The client sets read timeout to Docling + LLM worst case (300 + 600 = 900s)
-per file. Server handles all retries internally so the client never needs to
-retry the whole batch.
-
-CSV columns: filename, bank_name, fi_num, master_account_number, sub_account_number
+Both stages retry individually via _with_retry up to _MAX_ATTEMPTS times, with
+each retry increasing the timeout by _RETRY_TIMEOUT_INCREMENT seconds.
 """
 
 import asyncio
@@ -28,16 +19,19 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import UploadFile
 
 from app.core.config import get_settings
 from app.features.extraction.router import _run_extraction
+from app.features.extraction.batch.csv_writer import (
+    _CSV_HEADER,
+    _comment,
+    _make_data_row,
+    _make_error_row,
+)
 from app.services.file_service import decode_txt_bytes, validate_and_read_upload
 
 logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/extract", tags=["Batch Extraction"])
 settings = get_settings()
 
 # ---------------------------------------------------------------------------
@@ -57,42 +51,6 @@ _RETRY_TIMEOUT_INCREMENT = 180.0
 # Pipeline sentinel — signals Stage 2 that Stage 1 is done
 # ---------------------------------------------------------------------------
 _DONE = object()
-
-# ---------------------------------------------------------------------------
-# CSV helpers
-# ---------------------------------------------------------------------------
-
-_CSV_HEADER = "filename,bank_name,fi_num,master_account_number,sub_account_number\r\n"
-
-
-def _escape_csv_field(value: str | None) -> str:
-    if value is None:
-        return ""
-    s = str(value)
-    if "," in s or '"' in s or "\n" in s or "\r" in s:
-        s = '"' + s.replace('"', '""') + '"'
-    return s
-
-
-def _make_data_row(filename: str, result) -> str:
-    d = result.data
-    fields = [
-        filename,
-        d.bank_name,
-        d.fi_num,
-        d.master_account_number,
-        d.sub_account_number,
-    ]
-    return ",".join(_escape_csv_field(f) for f in fields) + "\r\n"
-
-
-def _make_error_row(filename: str) -> str:
-    fields = [filename, "", "", "", ""]
-    return ",".join(_escape_csv_field(f) for f in fields) + "\r\n"
-
-
-def _comment(message: str) -> str:
-    return f"# {message}\r\n"
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +143,7 @@ async def _stage_ocr(files: list[UploadFile], queue: asyncio.Queue) -> None:
 # Core streaming generator — pipelined with retry
 # ---------------------------------------------------------------------------
 
-async def _stream_batch(files: list[UploadFile]) -> AsyncGenerator[str, None]:
+async def stream_batch(files: list[UploadFile]) -> AsyncGenerator[str, None]:
     """
     Two-stage pipeline:
       Stage 1 (OCR)  — background task, sends files to Docling
@@ -285,70 +243,3 @@ async def _stream_batch(files: list[UploadFile]) -> AsyncGenerator[str, None]:
     except Exception as exc:
         logger.exception("Batch stream failed: %s", exc)
         yield _comment(f"fatal error: {exc}")
-
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
-@router.post(
-    "/batch",
-    response_class=StreamingResponse,
-    summary="Batch extract fields from multiple files",
-)
-async def extract_batch(
-    files: list[UploadFile] = File(..., description="PDF or TXT files to process"),
-) -> StreamingResponse:
-    if not files:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=422, detail="No files provided.")
-
-    max_files = settings.max_files_per_batch
-    if len(files) > max_files:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Too many files. Received {len(files)}, "
-                f"maximum allowed per request is {max_files}."
-            ),
-        )
-
-    logger.info("Batch request received — %d file(s)", len(files))
-
-    return StreamingResponse(
-        _stream_batch(files),
-        media_type="text/plain",
-        headers={
-            "X-Batch-File-Count": str(len(files)),
-            "Cache-Control": "no-cache",
-        },
-    )
-
-
-@router.get(
-    "/batch/download/{year}/{month}/{day}/{filename}",
-    summary="Download the CSV result for a completed batch run",
-)
-async def download_batch_result(
-    year: str, month: str, day: str, filename: str
-) -> FileResponse:
-    from fastapi import HTTPException
-
-    for segment in (year, month, day, filename):
-        if ".." in segment or "/" in segment or "\\" in segment:
-            raise HTTPException(status_code=400, detail="Invalid path.")
-
-    csv_path = _OUTPUT_ROOT / year / month / day / filename
-
-    if not csv_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"File not found: {year}/{month}/{day}/{filename}",
-        )
-
-    return FileResponse(
-        path=csv_path,
-        media_type="text/csv",
-        filename=filename,
-    )
